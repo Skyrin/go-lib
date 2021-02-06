@@ -1,4 +1,4 @@
-module Skyrin/go-lib
+module github.com/Skyrin/go-lib
 
 go 1.15
 

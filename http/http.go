@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"Skyrin/go-lib/sql"
+	"github.com/Skyrin/go-lib/sql"
 )
 
 const (
