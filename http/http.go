@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-
-	"github.com/Skyrin/go-lib/sql"
 )
 
 const (
@@ -18,7 +16,7 @@ const (
 )
 
 // NewServeMux returns a new http.ServeMux with routes supported by the API
-func NewServeMux(dbConn *sql.SQLConnection) (sMux *http.ServeMux, err error) {
+func NewServeMux() (sMux *http.ServeMux, err error) {
 	sMux = http.NewServeMux()
 
 	return sMux, nil
