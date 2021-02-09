@@ -1,9 +1,9 @@
-package lib
+package errors
 
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
+	pkgerrors "github.com/pkg/errors"
 )
 
 var CustomExtendedError *ExtendedError = &ExtendedError{}
@@ -27,9 +27,9 @@ func (e *ExtendedError) Is(tgt error) bool {
 func NewCError(err error, debugMsgKey, userMsgKey string, log bool) (customError *ExtendedError) {
 	var errNew error
 	if err == nil {
-		errNew = errors.New(debugMsgKey)
+		errNew = pkgerrors.New(debugMsgKey)
 	} else {
-		errNew = errors.Wrap(err, debugMsgKey)
+		errNew = pkgerrors.Wrap(err, debugMsgKey)
 	}
 	return &ExtendedError{
 		InnerError: errNew,
