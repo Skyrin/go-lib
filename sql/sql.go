@@ -7,6 +7,7 @@ import (
 	"database/sql"
 
 	sq "github.com/Masterminds/squirrel"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 
 	// Including postgres library for SQL connections
@@ -70,7 +71,7 @@ func NewPostgresConn(cp *ConnParam) (conn *Connection, err error) {
 	if cp == nil {
 		cp, err = getConnParamFromENV()
 		if err != nil {
-			return nil, fmt.Errorf("[NewPostgresConn.1]%v", err)
+			return nil, errors.Wrap(err, "[NewPostgresConn.1]")
 		}
 	}
 
@@ -79,10 +80,10 @@ func NewPostgresConn(cp *ConnParam) (conn *Connection, err error) {
 		cp.Host, cp.Port, cp.User, cp.Password, cp.DBName, cp.SSLMode, cp.SearchPath)
 	sqlConn, err := sql.Open("postgres", connStr)
 	if err != nil {
-		return nil, fmt.Errorf("[NewPostgresConn.2]%v", err)
+		return nil, errors.Wrap(err, "[NewPostgresConn.2]")
 	}
 	if err := sqlConn.Ping(); err != nil {
-		return nil, fmt.Errorf("[NewPostgresConn.3]%v", err)
+		return nil, errors.Wrap(err, "[NewPostgresConn.3]")
 	}
 
 	return &Connection{DB: sqlConn, Slug: NewSlug(nil)}, nil
@@ -102,7 +103,7 @@ func (c *Connection) Begin() (err error) {
 	}
 	c.txn, err = c.DB.Begin()
 	if err != nil {
-		return fmt.Errorf("[Connection.Begin.2]:%v", err)
+		return errors.Wrap(err, "[Connection.Begin.2]")
 	}
 
 	return nil
@@ -115,7 +116,7 @@ func (c *Connection) Commit() (err error) {
 	}
 
 	if err = c.txn.Commit(); err != nil {
-		return fmt.Errorf("[Connection.Commit.2]:%v", err)
+		return errors.Wrap(err, "[Connection.Commit.2]")
 	}
 
 	c.txn = nil
@@ -222,14 +223,14 @@ func (c *Connection) ToSQLAndQuery(sb sq.SelectBuilder) (rows *sql.Rows, err err
 	if err != nil {
 		log.Error().Err(err).Msgf("[Connection.ToSQLAndQuery.1] failed to generate select query - stmt: %s | bind: %+v",
 			stmt, bindList)
-		return nil, fmt.Errorf("[Connection.ToSQLAndQuery.1]%v", err)
+		return nil, errors.Wrap(err, "[Connection.ToSQLAndQuery.1]")
 	}
 
 	rows, err = c.DB.Query(stmt, bindList...)
 	if err != nil {
 		log.Error().Err(err).Msgf("[Connection.ToSQLAndQuery.2] failed to run select query - stmt: %s | bind: %+v",
 			stmt, bindList)
-		return nil, fmt.Errorf("[Connection.ToSQLAndQuery.2]%v", err)
+		return nil, errors.Wrap(err, "[Connection.ToSQLAndQuery.2]")
 	}
 
 	return rows, nil
@@ -242,7 +243,7 @@ func (c *Connection) ToSQLAndQueryRow(sb sq.SelectBuilder) (row *sql.Row, err er
 	if err != nil {
 		log.Error().Err(err).Msgf("[Connection.ToSQLAndQueryRow.1] failed to generate select query - stmt: %s | bind: %+v",
 			stmt, bindList)
-		return nil, fmt.Errorf("[Connection.ToSQLAndQueryRow.1]%v", err)
+		return nil, errors.Wrap(err, "[Connection.ToSQLAndQueryRow.1]")
 	}
 
 	return c.DB.QueryRow(stmt, bindList...), nil
@@ -255,11 +256,11 @@ func (c *Connection) ExecInsert(ib sq.InsertBuilder) (err error) {
 		log.Error().Err(err).
 			Msgf("failed to generate insert query - stmt: %s | bind: %+v",
 				stmt, bindList)
-		return fmt.Errorf("[Connection.ExecInsert.1]%v", err)
+		return errors.Wrap(err, "[Connection.ExecInsert.1]")
 	}
 
 	if _, err := c.Exec(stmt, bindList...); err != nil {
-		return fmt.Errorf("[Connection.ExecInsert.2]%v", err)
+		return errors.Wrap(err, "[Connection.ExecInsert.2]")
 	}
 
 	return nil
@@ -272,11 +273,11 @@ func (c *Connection) ExecUpdate(ub sq.UpdateBuilder) (err error) {
 		log.Error().Err(err).
 			Msgf("failed to generate update query - stmt: %s | bind: %+v",
 				stmt, bindList)
-		return fmt.Errorf("[Connection.ExecUpdate.1]%v", err)
+		return errors.Wrap(err, "[Connection.ExecUpdate.1]")
 	}
 
 	if _, err := c.Exec(stmt, bindList...); err != nil {
-		return fmt.Errorf("[Connection.ExecUpdate.2]%v", err)
+		return errors.Wrap(err, "[Connection.ExecUpdate.2]")
 	}
 
 	return nil
@@ -289,11 +290,11 @@ func (c *Connection) ExecDelete(delB sq.DeleteBuilder) (err error) {
 		log.Error().Err(err).
 			Msgf("failed to generate delete query - stmt: %s | bind: %+v",
 				stmt, bindList)
-		return fmt.Errorf("[Connection.ExecDelete.1]%v", err)
+		return errors.Wrap(err, "[Connection.ExecDelete.1]")
 	}
 
 	if _, err := c.Exec(stmt, bindList...); err != nil {
-		return fmt.Errorf("[Connection.ExecDelete.2]%v", err)
+		return errors.Wrap(err, "[Connection.ExecDelete.2]")
 	}
 
 	return nil
@@ -306,11 +307,11 @@ func (c *Connection) ExecInsertReturningID(ib sq.InsertBuilder) (id int, err err
 		log.Error().Err(err).
 			Msgf("failed to generate insert query - stmt: %s | bind: %+v",
 				stmt, bindList)
-		return 0, fmt.Errorf("[Connection.ExecInsert.1]%v", err)
+		return 0, errors.Wrap(err, "[Connection.ExecInsert.1]")
 	}
 
 	if err := c.QueryRow(stmt, bindList...).Scan(&id); err != nil {
-		return 0, fmt.Errorf("[Connection.ExecInsert.2]%v", err)
+		return 0, errors.Wrap(err, "[Connection.ExecInsert.2]")
 	}
 
 	return id, nil
