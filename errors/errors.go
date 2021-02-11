@@ -12,31 +12,24 @@ var CustomExtendedError *ExtendedError = &ExtendedError{}
 type ExtendedError struct {
 	InnerError error
 	UserMsg    string
-	ShouldLog  bool
+	original error
 }
 
+// Error returns the string of the inner error
 func (e *ExtendedError) Error() string {
 	return fmt.Sprintf("%+v", e.InnerError)
 }
 
-func (e *ExtendedError) Is(tgt error) bool {
-	_, ok := tgt.(*ExtendedError)
-
-	return ok
+// IsError checks if the originating error is the specified target
+func (e *ExtendedError) IsError(tgt error) bool {
+	return errors.Is(e.original, tgt)
 }
 
-func NewCError(err error, debugMsgKey, userMsgKey string, log bool) (customError *ExtendedError) {
-	var errNew error
-	if err == nil {
-		errNew = pkgerrors.New(debugMsgKey)
-	} else {
-		errNew = pkgerrors.Wrap(err, debugMsgKey)
-	}
-	return &ExtendedError{
-		InnerError: errNew,
-		UserMsg:    userMsgKey,
-		ShouldLog:  log,
-	}
+// AsError calls errors.As on the original error with the specified target error. 
+// If it is the target error, it will set the target as the original error value
+// and return true, otherwise it returns false
+func (e *ExtendedError) AsError(tgt interface{}) bool {
+	return errors.As(e.original, tgt)
 }
 
 // Wrap checks if the passed error has been wrapped before by this func
@@ -57,6 +50,7 @@ func Wrap(err error, debugMsg, userMsg string) error {
 	}
 	ee := &ExtendedError{
 		UserMsg: userMsg,
+		original: err,
 	}
 	if err == nil {
 		// If no user message is set, then set to unknown internal server error
