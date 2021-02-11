@@ -7,7 +7,7 @@ import (
 	"database/sql"
 
 	sq "github.com/Masterminds/squirrel"
-	"github.com/pkg/errors"
+	"github.com/Skyrin/go-lib/errors"
 	"github.com/rs/zerolog/log"
 
 	// Including postgres library for SQL connections
@@ -71,7 +71,7 @@ func NewPostgresConn(cp *ConnParam) (conn *Connection, err error) {
 	if cp == nil {
 		cp, err = getConnParamFromENV()
 		if err != nil {
-			return nil, errors.Wrap(err, "[NewPostgresConn.1]")
+			return nil, errors.Wrap(err, "NewPostgresConn.1", "Failed to initialize DB")
 		}
 	}
 
@@ -80,10 +80,10 @@ func NewPostgresConn(cp *ConnParam) (conn *Connection, err error) {
 		cp.Host, cp.Port, cp.User, cp.Password, cp.DBName, cp.SSLMode, cp.SearchPath)
 	sqlConn, err := sql.Open("postgres", connStr)
 	if err != nil {
-		return nil, errors.Wrap(err, "[NewPostgresConn.2]")
+		return nil, errors.Wrap(err, "NewPostgresConn.2", "Failed to connect to DB")
 	}
 	if err := sqlConn.Ping(); err != nil {
-		return nil, errors.Wrap(err, "[NewPostgresConn.3]")
+		return nil, errors.Wrap(err, "NewPostgresConn.3", "Failed to ping DB")
 	}
 
 	return &Connection{DB: sqlConn, Slug: NewSlug(nil)}, nil
@@ -99,11 +99,11 @@ func (c *Connection) Txn() *sql.Tx {
 // calls until commit/rollback is called
 func (c *Connection) Begin() (err error) {
 	if c.txn != nil {
-		return fmt.Errorf("[Connection.Begin.1] already in txn")
+		return errors.Wrap(nil, "Connection.Begin.1 - not in a txn", "")
 	}
 	c.txn, err = c.DB.Begin()
 	if err != nil {
-		return errors.Wrap(err, "[Connection.Begin.2]")
+		return errors.Wrap(err, "Connection.Begin.2", "")
 	}
 
 	return nil
@@ -112,11 +112,11 @@ func (c *Connection) Begin() (err error) {
 // Commit wrapper for sql.Commit. If successfull, will unset the txn object
 func (c *Connection) Commit() (err error) {
 	if c.txn == nil {
-		return fmt.Errorf("[Connection.Commit.1] not in txn")
+		return errors.Wrap(nil, "Connection.Commit.1 - not in txn", "")
 	}
 
 	if err = c.txn.Commit(); err != nil {
-		return errors.Wrap(err, "[Connection.Commit.2]")
+		return errors.Wrap(err, "Connection.Commit.2", "")
 	}
 
 	c.txn = nil
@@ -125,7 +125,7 @@ func (c *Connection) Commit() (err error) {
 }
 
 // RollbackIfInTxn same as Rollback, except if it is in a txn, it will not
-// product a warning
+// return an error
 func (c *Connection) RollbackIfInTxn() {
 	if c.txn == nil {
 		return
@@ -141,10 +141,15 @@ func (c *Connection) Rollback() {
 	if c.txn == nil {
 		log.Warn().Msg("[Connection.Rollback.1] not in txn")
 		return
+		// TODO: replace with this (Rollback needs to return an error)
+		// return errors.Wrap(nil, "Connection.Rollback.1 - not in txn", "")
 	}
 
 	if err := c.txn.Rollback(); err != nil {
 		log.Error().Err(err).Msg("[Connection.Rollback.2]")
+		return
+		// TODO: replace with this (Rollback needs to return an error)
+		// return errors.Wrap(err, "Connection.Rollback.2", "")
 	}
 
 	c.txn = nil
@@ -160,13 +165,12 @@ func (c *Connection) Query(query string, args ...interface{}) (rows *sql.Rows, e
 
 	rows, err = c.DB.Query(query, args...)
 	if err != nil {
-		if err != sql.ErrNoRows {
-			// TODO: redact potential sensitive information in args
-			log.Warn().Err(err).Msgf("query: %s\nargs: %v", query, args)
-		}
+		// TODO: redact potential sensitive information in args
+		return nil, errors.Wrap(err, fmt.Sprintf("Connection.Query.1 - query: %s\n args: %v",
+			 query, args), "")
 	}
 
-	return rows, err
+	return rows, nil
 }
 
 // Exec wrapper for sql.Exec with automatic txn handling
@@ -177,10 +181,11 @@ func (c *Connection) Exec(query string, args ...interface{}) (res sql.Result, er
 	res, err = c.DB.Exec(query, args...)
 	if err != nil {
 		// TODO: redact potential sensitive information in args
-		log.Warn().Err(err).Msgf("query: %s\nargs: %v", query, args)
+		return nil, errors.Wrap(err, fmt.Sprintf("Connection.Exec.1 - query: %s\n args: %v",
+			 query, args), "")
 	}
 
-	return res, err
+	return res, nil
 }
 
 // QueryRow wrapper for sql.QueryRow with automatic txn handling
@@ -221,16 +226,18 @@ func (c *Connection) Expr(sql string, args interface{}) sq.Sqlizer {
 func (c *Connection) ToSQLAndQuery(sb sq.SelectBuilder) (rows *sql.Rows, err error) {
 	stmt, bindList, err := sb.ToSql()
 	if err != nil {
-		log.Error().Err(err).Msgf("[Connection.ToSQLAndQuery.1] failed to generate select query - stmt: %s | bind: %+v",
-			stmt, bindList)
-		return nil, errors.Wrap(err, "[Connection.ToSQLAndQuery.1]")
+		// TODO: redact sensitive information
+		return nil, errors.Wrap(err, 
+			fmt.Sprintf("Connection.ToSQLAndQuery.1 - failed to generate select query - stmt: %s | bind: %+v",
+			stmt, bindList), "")
 	}
 
 	rows, err = c.DB.Query(stmt, bindList...)
 	if err != nil {
-		log.Error().Err(err).Msgf("[Connection.ToSQLAndQuery.2] failed to run select query - stmt: %s | bind: %+v",
-			stmt, bindList)
-		return nil, errors.Wrap(err, "[Connection.ToSQLAndQuery.2]")
+		// TODO: redact sensitive information
+		return nil, errors.Wrap(err, 
+			fmt.Sprintf("Connection.ToSQLAndQuery.2 - failed to generate select query - stmt: %s | bind: %+v",
+			stmt, bindList), "")
 	}
 
 	return rows, nil
@@ -241,9 +248,10 @@ func (c *Connection) ToSQLAndQuery(sb sq.SelectBuilder) (rows *sql.Rows, err err
 func (c *Connection) ToSQLAndQueryRow(sb sq.SelectBuilder) (row *sql.Row, err error) {
 	stmt, bindList, err := sb.ToSql()
 	if err != nil {
-		log.Error().Err(err).Msgf("[Connection.ToSQLAndQueryRow.1] failed to generate select query - stmt: %s | bind: %+v",
-			stmt, bindList)
-		return nil, errors.Wrap(err, "[Connection.ToSQLAndQueryRow.1]")
+		// TODO: redact sensitive information
+		return nil, errors.Wrap(err, 
+			fmt.Sprintf("Connection.ToSQLAndQueryRow.1 - failed to generate select query - stmt: %s | bind: %+v",
+			stmt, bindList), "")
 	}
 
 	return c.DB.QueryRow(stmt, bindList...), nil
@@ -253,14 +261,14 @@ func (c *Connection) ToSQLAndQueryRow(sb sq.SelectBuilder) (row *sql.Row, err er
 func (c *Connection) ExecInsert(ib sq.InsertBuilder) (err error) {
 	stmt, bindList, err := ib.ToSql()
 	if err != nil {
-		log.Error().Err(err).
-			Msgf("failed to generate insert query - stmt: %s | bind: %+v",
-				stmt, bindList)
-		return errors.Wrap(err, "[Connection.ExecInsert.1]")
+		// TODO: redact sensitive information
+		return errors.Wrap(err, 
+			fmt.Sprintf("Connection.ExecInsert.1 - failed to generate insert query - stmt: %s | bind: %+v",
+			stmt, bindList), "")
 	}
 
 	if _, err := c.Exec(stmt, bindList...); err != nil {
-		return errors.Wrap(err, "[Connection.ExecInsert.2]")
+		return errors.Wrap(err, "Connection.ExecInsert.2", "")
 	}
 
 	return nil
@@ -270,14 +278,14 @@ func (c *Connection) ExecInsert(ib sq.InsertBuilder) (err error) {
 func (c *Connection) ExecUpdate(ub sq.UpdateBuilder) (err error) {
 	stmt, bindList, err := ub.ToSql()
 	if err != nil {
-		log.Error().Err(err).
-			Msgf("failed to generate update query - stmt: %s | bind: %+v",
-				stmt, bindList)
-		return errors.Wrap(err, "[Connection.ExecUpdate.1]")
+		// TODO: redact sensitive information
+		return errors.Wrap(err, 
+			fmt.Sprintf("Connection.ExecUpdate.1 - failed to generate update query - stmt: %s | bind: %+v",
+			stmt, bindList), "")
 	}
 
 	if _, err := c.Exec(stmt, bindList...); err != nil {
-		return errors.Wrap(err, "[Connection.ExecUpdate.2]")
+		return errors.Wrap(err, "Connection.ExecUpdate.2", "")
 	}
 
 	return nil
@@ -287,14 +295,14 @@ func (c *Connection) ExecUpdate(ub sq.UpdateBuilder) (err error) {
 func (c *Connection) ExecDelete(delB sq.DeleteBuilder) (err error) {
 	stmt, bindList, err := delB.ToSql()
 	if err != nil {
-		log.Error().Err(err).
-			Msgf("failed to generate delete query - stmt: %s | bind: %+v",
-				stmt, bindList)
-		return errors.Wrap(err, "[Connection.ExecDelete.1]")
+		// TODO: redact sensitive information
+		return errors.Wrap(err, 
+			fmt.Sprintf("Connection.ExecDelete.1 - failed to generate delete query - stmt: %s | bind: %+v",
+			stmt, bindList), "")
 	}
 
 	if _, err := c.Exec(stmt, bindList...); err != nil {
-		return errors.Wrap(err, "[Connection.ExecDelete.2]")
+		return errors.Wrap(err, "Connection.ExecDelete.2", "")
 	}
 
 	return nil
@@ -304,14 +312,14 @@ func (c *Connection) ExecDelete(delB sq.DeleteBuilder) (err error) {
 func (c *Connection) ExecInsertReturningID(ib sq.InsertBuilder) (id int, err error) {
 	stmt, bindList, err := ib.ToSql()
 	if err != nil {
-		log.Error().Err(err).
-			Msgf("failed to generate insert query - stmt: %s | bind: %+v",
-				stmt, bindList)
-		return 0, errors.Wrap(err, "[Connection.ExecInsert.1]")
+		// TODO: redact sensitive information
+		return 0, errors.Wrap(err, 
+			fmt.Sprintf("failed to generate insert query - stmt: %s | bind: %+v",
+			stmt, bindList), "")
 	}
 
 	if err := c.QueryRow(stmt, bindList...).Scan(&id); err != nil {
-		return 0, errors.Wrap(err, "[Connection.ExecInsert.2]")
+		return 0, errors.Wrap(err, "Connection.ExecInsert.2", "")
 	}
 
 	return id, nil
