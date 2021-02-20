@@ -4,8 +4,8 @@
 // 	Wherever the error comes from, convert to json
 // 	errJSON, _ := json.Marshal(err2.Error())
 //
-// 	Create a new client
-//	client := arc.NewClient()
+// 	Create a new client and set the base url for the service
+//	client := arc.NewClient("https://example.com")
 //
 // 	You also have the ability to set the URL and path by using SetBaseURL and SetPath
 // 	Create a request, replace with the appropriate values for eventCode and publishKey
@@ -32,8 +32,6 @@ import (
 )
 
 const (
-	// DefaultBaseURL default URL to publish notifications to Arc
-	DefaultBaseURL = "https://api-arc01a001.arcgrid.com"
 	// DefaultPath is the default path to the arc notification service
 	DefaultPath = "/services/"
 	// DefaultVersion is the default version number to use in the request
@@ -86,14 +84,15 @@ type Client struct {
 
 // DefaultClient is a default client
 var DefaultClient = &Client{
-	BaseURL: DefaultBaseURL,
 	Path:    DefaultPath,
 	Version: DefaultVersion,
 	ID:      DefaultID,
 }
 
 // NewClient returns a new client to handle requests to the arc notification service
-func NewClient() (c *Client) {
+func NewClient(url string) (c *Client) {
+	SetBaseURL(url)
+
 	return DefaultClient
 }
 
@@ -104,11 +103,7 @@ func SetBaseURL(url string) {
 
 // SetBaseURL sets the base URL to the notification service
 func (c *Client) SetBaseURL(url string) {
-	if len(url) == 0 {
-		c.BaseURL = DefaultBaseURL
-	} else {
-		c.BaseURL = url
-	}
+	c.BaseURL = url
 }
 
 // SetPath sets the path to the notification service
@@ -205,8 +200,6 @@ func (c *Client) sendArcNotification(an Notification) error {
 	if err := decoder.Decode(body); err != nil {
 		return errors.Wrap(err, "sendArcNotification.3", "")
 	}
-
-	fmt.Printf("body: %+v\n", body)
 
 	if err := body.responseErrors(); err != nil {
 		return errors.Wrap(err, "sendArcNotification.4", "")
