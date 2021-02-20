@@ -9,9 +9,9 @@
 //
 // 	You also have the ability to set the URL and path by using SetBaseURL and SetPath
 // 	Create a request, replace with the appropriate values for eventCode and publishKey
-//	req := arc.CreateRequest("eventCode",
+//	req := arc.CreateArcsignalEventPublishRequest("eventCode",
 //		"publishKey",
-//		string(errJSON))
+//		errJSON)
 //
 // 	Add at least one request, can add several
 //	client.AddRequest(req)
@@ -40,16 +40,16 @@ const (
 	DefaultID = 0
 )
 
-// Notification formats a notification object for arc notifications
-type Notification struct {
-	Format      string    `json:"format"`
-	Version     int       `json:"version"`
-	ID          int       `json:"id"`
-	RequestList []Request `json:"requests"`
+// Request formats a request to send to an arc API server
+type Request struct {
+	Format      string        `json:"format"`
+	Version     int           `json:"version"`
+	ID          int           `json:"id"`
+	RequestList []RequestItem `json:"requests"`
 }
 
-// Request formats the request object
-type Request struct {
+// RequestItem is an item from a RequestList
+type RequestItem struct {
 	Service string        `json:"service"`
 	Action  string        `json:"action"`
 	Params  []interface{} `json:"params"`
@@ -73,42 +73,28 @@ type Response struct {
 	Errors    []string        `json:"errors"`
 }
 
-// Client handles the process of publishing an arc notification
+// Client handles the posting/making arc requests to an arc API server
 type Client struct {
 	BaseURL     string
 	Path        string
 	Version     int
 	ID          int
-	RequestList []Request
-}
-
-// DefaultClient is a default client
-var DefaultClient = &Client{
-	Path:    DefaultPath,
-	Version: DefaultVersion,
-	ID:      DefaultID,
+	RequestList []RequestItem
 }
 
 // NewClient returns a new client to handle requests to the arc notification service
 func NewClient(url string) (c *Client) {
-	SetBaseURL(url)
-
-	return DefaultClient
-}
-
-// SetBaseURL sets the base URL to the notification service
-func SetBaseURL(url string) {
-	DefaultClient.SetBaseURL(url)
+	return &Client{
+		BaseURL: url,
+		Path:    DefaultPath,
+		Version: DefaultVersion,
+		ID:      DefaultID,
+	}
 }
 
 // SetBaseURL sets the base URL to the notification service
 func (c *Client) SetBaseURL(url string) {
 	c.BaseURL = url
-}
-
-// SetPath sets the path to the notification service
-func SetPath(path string) {
-	DefaultClient.SetPath(path)
 }
 
 // SetPath sets the path to the notification service
@@ -121,18 +107,8 @@ func (c *Client) SetPath(path string) {
 }
 
 // SetVersion sets the version for the request to the notification service
-func SetVersion(version int) {
-	DefaultClient.SetVersion(version)
-}
-
-// SetVersion sets the version for the request to the notification service
 func (c *Client) SetVersion(version int) {
 	c.Version = version
-}
-
-// SetID sets the id for the request to the notification service
-func SetID(id int) {
-	DefaultClient.SetID(id)
 }
 
 // SetID sets the id for the request to the notification service
@@ -140,19 +116,19 @@ func (c *Client) SetID(id int) {
 	c.ID = id
 }
 
-// AddRequest adds a notification request to the list of requests to send to arc
-func (c *Client) AddRequest(req Request) {
-	DefaultClient.RequestList = append(DefaultClient.RequestList, req)
+// AddRequest adds a request to the list of requests to send to arc
+func (c *Client) AddRequest(req RequestItem) {
+	c.RequestList = append(c.RequestList, req)
 }
 
-// CreateRequest creates a request object
-func CreateRequest(eventCode, publishKey, errorJSON string) (r Request) {
+// CreateArcsignalEventPublishRequest creates a request object
+func CreateArcsignalEventPublishRequest(eventCode, publishKey string, errorJSON []byte) (r RequestItem) {
 	var params []interface{}
 	params = append(params, eventCode)
 	params = append(params, publishKey)
-	params = append(params, errorJSON)
+	params = append(params, string(errorJSON))
 
-	r = Request{
+	r = RequestItem{
 		Service: "core",
 		Action:  "open.arcsignal.Event.pub",
 		Params:  params,
@@ -163,26 +139,26 @@ func CreateRequest(eventCode, publishKey, errorJSON string) (r Request) {
 
 // Send performs the actual publish requet to the arc notification service
 func (c *Client) Send() error {
-	an, err := c.createArcNotification()
+	an, err := c.createArcRequest()
 	if err != nil {
 		return err
 	}
 
-	if err := c.sendArcNotification(an); err != nil {
+	if err := c.sendArcRequest(an); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// sendArcNotification sends the http request to publish a notification to arc
-func (c *Client) sendArcNotification(an Notification) error {
+// sendArcRequest sends the http request to publish a notification to arc
+func (c *Client) sendArcRequest(ar Request) error {
 	payload := new(bytes.Buffer)
-	json.NewEncoder(payload).Encode(an)
+	json.NewEncoder(payload).Encode(ar)
 
 	req, err := http.NewRequest("POST", c.getServiceURL(), payload)
 	if err != nil {
-		return errors.Wrap(err, "sendArcNotification.1", "")
+		return errors.Wrap(err, "sendArcRequest.1", "")
 	}
 
 	req.Header.Add("Content-Type", "application/json")
@@ -191,31 +167,31 @@ func (c *Client) sendArcNotification(an Notification) error {
 	client := &http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
-		return errors.Wrap(err, "sendArcNotification.2", "")
+		return errors.Wrap(err, "sendArcRequest.2", "")
 	}
 	defer res.Body.Close()
 
 	body := &ResponseList{}
 	decoder := json.NewDecoder(res.Body)
 	if err := decoder.Decode(body); err != nil {
-		return errors.Wrap(err, "sendArcNotification.3", "")
+		return errors.Wrap(err, "sendArcRequest.3", "")
 	}
 
 	if err := body.responseErrors(); err != nil {
-		return errors.Wrap(err, "sendArcNotification.4", "")
+		return errors.Wrap(err, "sendArcRequest.4", "")
 	}
 
 	return nil
 }
 
-// createArcNotification creates the notification request in JSON format
-func (c *Client) createArcNotification() (an Notification, err error) {
+// createArcRequest creates the notification request in JSON format
+func (c *Client) createArcRequest() (ar Request, err error) {
 	if len(c.RequestList) == 0 {
-		return an, errors.Wrap(fmt.Errorf("Request List is empty"),
-			"createArcNotification.1", "There needs to be at least one request to be able to send a notification")
+		return ar, errors.Wrap(fmt.Errorf("Request List is empty"),
+			"createArcRequest.1", "There needs to be at least one request to be able to send a notification")
 	}
 
-	return Notification{
+	return Request{
 		Format:      "json",
 		Version:     c.Version,
 		ID:          c.ID,
