@@ -1,9 +1,6 @@
 // Package arc provides the necessary calls to publish notifications to the arc system
 // Basic Usage sample:
 //
-// 	Wherever the error comes from, convert to json
-// 	errJSON, _ := json.Marshal(err2.Error())
-//
 // 	Create a new client and set the base url for the service
 //	client := arc.NewClient("https://example.com")
 //
@@ -11,7 +8,7 @@
 // 	Create a request, replace with the appropriate values for eventCode and publishKey
 //	req := arc.CreateArcsignalEventPublishRequest("eventCode",
 //		"publishKey",
-//		errJSON)
+//		err)
 //
 // 	Add at least one request, can add several
 //	client.AddRequest(req)
@@ -122,11 +119,11 @@ func (c *Client) AddRequest(req RequestItem) {
 }
 
 // CreateArcsignalEventPublishRequest creates a request object
-func CreateArcsignalEventPublishRequest(eventCode, publishKey string, errorJSON []byte) (r RequestItem) {
+func CreateArcsignalEventPublishRequest(eventCode, publishKey string, err interface{}) (r RequestItem) {
 	var params []interface{}
 	params = append(params, eventCode)
 	params = append(params, publishKey)
-	params = append(params, string(errorJSON))
+	params = append(params, err)
 
 	r = RequestItem{
 		Service: "core",
@@ -147,6 +144,8 @@ func (c *Client) Send() error {
 	if err := c.sendArcRequest(an); err != nil {
 		return err
 	}
+
+	c.RequestList = nil
 
 	return nil
 }
@@ -208,6 +207,12 @@ func (c *Client) getServiceURL() string {
 func (nrl *ResponseList) responseErrors() error {
 	if !nrl.Success {
 		return errors.Wrap(fmt.Errorf("%+v", nrl), "responseErrors.1", "")
+	}
+
+	for _, v := range nrl.Responses {
+		if !v.Success {
+			return errors.Wrap(fmt.Errorf("%+v", nrl), "responseErrors.2", "")
+		}
 	}
 
 	return nil
