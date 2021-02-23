@@ -10,9 +10,9 @@ import (
 var CustomExtendedError *ExtendedError = &ExtendedError{}
 
 type ExtendedError struct {
-	InnerError error
-	UserMsg    string
-	original error
+	InnerError error  `json:"innerError"`
+	UserMsg    string `json:"userMsg"`
+	original   error
 }
 
 // Error returns the string of the inner error
@@ -25,7 +25,7 @@ func (e *ExtendedError) IsError(tgt error) bool {
 	return errors.Is(e.original, tgt)
 }
 
-// AsError calls errors.As on the original error with the specified target error. 
+// AsError calls errors.As on the original error with the specified target error.
 // If it is the target error, it will set the target as the original error value
 // and return true, otherwise it returns false
 func (e *ExtendedError) AsError(tgt interface{}) bool {
@@ -49,7 +49,7 @@ func Wrap(err error, debugMsg, userMsg string) error {
 		return ee
 	}
 	ee := &ExtendedError{
-		UserMsg: userMsg,
+		UserMsg:  userMsg,
 		original: err,
 	}
 	if err == nil {
