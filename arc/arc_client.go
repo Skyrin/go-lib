@@ -43,6 +43,8 @@ type Request struct {
 	Version     int           `json:"version"`
 	ID          int           `json:"id"`
 	RequestList []RequestItem `json:"requests"`
+	Token       string        `json:"token"`
+	Username    string        `json:"username"`
 }
 
 // RequestItem is an item from a RequestList
@@ -76,6 +78,8 @@ type Client struct {
 	Path        string
 	Version     int
 	ID          int
+	Username    string
+	Token       string
 	RequestList []RequestItem
 }
 
@@ -111,6 +115,16 @@ func (c *Client) SetVersion(version int) {
 // SetID sets the id for the request to the notification service
 func (c *Client) SetID(id int) {
 	c.ID = id
+}
+
+// SetUsername sets the usename to use
+func (c *Client) SetUsername(username string) {
+	c.Username = username
+}
+
+// SetToken sets the authentication token to use
+func (c *Client) SetToken(token string) {
+	c.Token = token
 }
 
 // AddRequest adds a request to the list of requests to send to arc
