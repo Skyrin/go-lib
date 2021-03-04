@@ -52,6 +52,14 @@ type RequestItem struct {
 	Service string        `json:"service"`
 	Action  string        `json:"action"`
 	Params  []interface{} `json:"params"`
+	Options RequestItemOption `json:"options"`
+}
+
+// RequestItemOption defines possible options for a request item
+type RequestItemOption struct {
+	Value interface{} `json:"value"`
+	Flag interface{} `json:"flag"`
+	Filter interface{} `json:"filter"`
 }
 
 // ResponseList represents the notification service response
@@ -204,12 +212,19 @@ func (c *Client) createArcRequest() (ar Request, err error) {
 			"createArcRequest.1", "There needs to be at least one request to be able to send a notification")
 	}
 
-	return Request{
+	req := Request{
 		Format:      "json",
 		Version:     c.Version,
 		ID:          c.ID,
 		RequestList: c.RequestList,
-	}, nil
+	}
+	if c.Username != "" {
+		req.Username = c.Username
+	}
+	if c.Token != "" {
+		req.Token = c.Token
+	}
+	return req, nil
 }
 
 // getServiceURL returns the full url to post the request to
