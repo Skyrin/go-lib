@@ -22,3 +22,13 @@ func IsPQError(err error, errorCode string) bool {
 
 	return errors.As(err, &pqerr) && string(pqerr.Code) == errorCode
 }
+
+// IsAnyPQError checks if the passed error is a Postgres error
+func IsAnyPQError(err error) bool {
+	var pqerr *pq.Error
+	if ee := AsExtendedError(err); ee != nil {
+		return ee.AsError(&pqerr)
+	}
+
+	return errors.As(err, &pqerr)
+}
