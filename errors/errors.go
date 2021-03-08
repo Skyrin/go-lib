@@ -3,7 +3,9 @@ package errors
 import (
 	"errors"
 	"fmt"
+	"regexp"
 
+	"github.com/Skyrin/go-lib/sql"
 	pkgerrors "github.com/pkg/errors"
 )
 
@@ -41,6 +43,10 @@ func (e *ExtendedError) AsError(tgt interface{}) bool {
 // assign the InnerError and UserMsg to it and then return it. If it already
 // is an ExtendedError
 func Wrap(err error, debugMsg, userMsg string) error {
+	if sql.IsPQError(err, sql.PQErr58030IOError) {
+		debugMsg = editErrorMessageForPQIOError(err.Error())
+	}
+
 	if ee := AsExtendedError(err); ee != nil {
 		if userMsg != "" {
 			ee.UserMsg = userMsg
@@ -73,4 +79,12 @@ func AsExtendedError(err error) (ee *ExtendedError) {
 		return ee
 	}
 	return nil
+}
+
+// editErrorMessageForPQIOError returns an edited message for the error if it is a pg io error
+// this is so the logs do not consider it like a new error if it is triggered within a short period of time
+func editErrorMessageForPQIOError(errorMsg string) string {
+	re := regexp.MustCompile(`block [\d]+`)
+
+	return re.ReplaceAllString(errorMsg, "block X")
 }
