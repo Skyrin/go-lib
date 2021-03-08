@@ -10,6 +10,8 @@ import (
 const (
 	// PQErr23505UniqueViolation Postgres code for unique violation
 	PQErr23505UniqueViolation = "23505"
+	// PQErr58030IOError Postgres code for i/o error ("could not write to temporary file")
+	PQErr58030IOError = "58030"
 )
 
 // IsPQError checks if the passed error is the specified Postgres error code
