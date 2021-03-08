@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/Skyrin/go-lib/sql"
 	pkgerrors "github.com/pkg/errors"
 )
 
+// CustomExtendedError is the custom error object
 var CustomExtendedError *ExtendedError = &ExtendedError{}
 
+// ExtendedError is our custom error
 type ExtendedError struct {
 	InnerError error  `json:"innerError"`
 	UserMsg    string `json:"userMsg"`
@@ -43,10 +44,6 @@ func (e *ExtendedError) AsError(tgt interface{}) bool {
 // assign the InnerError and UserMsg to it and then return it. If it already
 // is an ExtendedError
 func Wrap(err error, debugMsg, userMsg string) error {
-	if sql.IsPQError(err, sql.PQErr58030IOError) {
-		debugMsg = editErrorMessageForPQIOError(err.Error())
-	}
-
 	if ee := AsExtendedError(err); ee != nil {
 		if userMsg != "" {
 			ee.UserMsg = userMsg
@@ -66,6 +63,10 @@ func Wrap(err error, debugMsg, userMsg string) error {
 		}
 		ee.InnerError = pkgerrors.New(debugMsg)
 	} else {
+		if IsPQError(err, PQErr58030IOError) {
+			debugMsg = editErrorMessageForPQIOError(err.Error())
+		}
+
 		ee.InnerError = pkgerrors.Wrap(err, debugMsg)
 	}
 
