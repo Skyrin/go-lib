@@ -89,3 +89,8 @@ func editErrorMessageForPQIOError(errorMsg string) string {
 
 	return re.ReplaceAllString(errorMsg, "block X")
 }
+
+// NewErr returns an error with the friendly user message from an ExtendedError, so it doesn't get logged
+func NewErr(err error) error {
+	return fmt.Errorf(AsExtendedError(err).UserMsg)
+}
