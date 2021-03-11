@@ -2,6 +2,7 @@ package errors
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/lib/pq"
 )
@@ -31,4 +32,14 @@ func IsAnyPQError(err error) bool {
 	}
 
 	return errors.As(err, &pqerr)
+}
+
+// IsNoRowsPQError returns whether the error is a pg sql no rows found
+func IsNoRowsPQError(err error) bool {
+	return ContainsError(err, "sql: no rows in result set")
+}
+
+// ContainsError checks if the error contains the specified error message
+func ContainsError(err error, msg string) bool {
+	return strings.Contains(err.Error(), msg)
 }
