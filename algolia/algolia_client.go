@@ -13,7 +13,6 @@ import (
 type Algolia struct {
 	Client *search.Client
 	Index  *search.Index
-	Token  string
 }
 
 // AlgoliaConfig contains the config information for the Algolia account to use
@@ -21,7 +20,6 @@ type AlgoliaConfig struct {
 	App       string
 	Key       string
 	Index     string
-	AuthToken string
 }
 
 // AlgoliaObject an Algolia object
@@ -44,15 +42,10 @@ func NewAlgolia(config *AlgoliaConfig) (alg *Algolia, err error) {
 		return nil, fmt.Errorf("Algolia Index not specified")
 	}
 
-	if config.AuthToken == "" {
-		return nil, fmt.Errorf("Authentication Token not specified")
-	}
-
 	// Initialize the Algolia client
 	alg = &Algolia{}
 	alg.Client = search.NewClient(config.App, config.Key)
 	alg.Index = alg.Client.InitIndex(config.Index)
-	alg.Token = config.AuthToken
 
 	return alg, nil
 }
