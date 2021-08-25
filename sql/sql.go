@@ -3,12 +3,16 @@ package sql
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"database/sql"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/Skyrin/go-lib/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 
 	// Including postgres library for SQL connections
 	_ "github.com/lib/pq"
@@ -28,16 +32,18 @@ type Connection struct {
 
 // ConnParam connection parameters used to initialize a connection
 type ConnParam struct {
-	Host       string
-	Port       string
-	User       string
-	Password   string
-	DBName     string
-	SSLMode    string
-	SearchPath string
+	Host        string
+	Port        string
+	User        string
+	Password    string
+	DBName      string
+	SSLMode     string
+	SearchPath  string
+	MigratePath string
 }
 
-func getConnParamFromENV() (cp *ConnParam, err error) {
+// GetConnParamFromENV initializes new connection parameters and populates from ENV variables
+func GetConnParamFromENV() (cp *ConnParam, err error) {
 	cp = &ConnParam{}
 
 	if os.Getenv("DBHOST") != "" {
@@ -61,15 +67,113 @@ func getConnParamFromENV() (cp *ConnParam, err error) {
 	if os.Getenv("DBSEARCHPATH") != "" {
 		cp.SearchPath = fmt.Sprintf("search_path=%s", os.Getenv("DBSEARCHPATH"))
 	}
+	if os.Getenv("DBMIGRATEPATH") != "" {
+		cp.MigratePath = os.Getenv("DBMIGRATEPATH")
+	}
 
 	return cp, nil
+}
+
+func getMigrateConnStr(cp *ConnParam) (connStr string, err error) {
+	var csb strings.Builder
+
+	if cp == nil {
+		cp, err = GetConnParamFromENV()
+		if err != nil {
+			return "", errors.Wrap(err, "getMigrateConnStr.1", "Failed to get DB connection parameters")
+		}
+	}
+
+	_, _ = csb.WriteString("postgres://")
+	_, _ = csb.WriteString(cp.User)
+	_, _ = csb.WriteString(":")
+	_, _ = csb.WriteString(cp.Password)
+	_, _ = csb.WriteString("@")
+	_, _ = csb.WriteString(cp.Host)
+	_, _ = csb.WriteString(":")
+	_, _ = csb.WriteString(cp.Port)
+	_, _ = csb.WriteString("/")
+	_, _ = csb.WriteString(cp.DBName)
+	_, _ = csb.WriteString("?")
+
+	if(cp.SSLMode != "") {
+		_, _ = csb.WriteString(cp.SSLMode)
+	} else {
+		_, _ = csb.WriteString("sslmode=require")
+	}
+
+	if cp.SearchPath != "" {
+		_, _ = csb.WriteString("&")
+		_, _ = csb.WriteString(cp.SearchPath)
+
+	}
+
+	return csb.String(), nil
+}
+
+// Upgrade tries to upgrade the database using migrations
+func Upgrade(cp *ConnParam) (err error) {
+	var fsb strings.Builder
+
+	//"db/migrations"
+	if cp.MigratePath != "" {
+		_, _ = fsb.WriteString("file://")
+		fsb.WriteString(cp.MigratePath)
+	} else {
+		fsb.WriteString("file://db/migrations")
+	}
+
+	connStr, err := getMigrateConnStr(cp)
+	if err != nil {
+		return errors.Wrap(err, "Upgrade.1", "Failed to get connection string")
+	}
+
+	m, err := migrate.New(fsb.String(),connStr)
+	if err != nil {
+		return errors.Wrap(err, "Upgrade.2", "Failed to initialize migration")
+	}
+
+	if err := m.Up(); err != nil {
+		return errors.Wrap(err, "Upgrade.3", "Failed to upgrade")
+	}
+
+	return nil
+}
+
+// Downgrade tries to downgrade the database using migrations
+func Downgrade(cp *ConnParam) (err error) {
+	var fsb strings.Builder
+
+	//"db/migrations"
+	if cp.MigratePath != "" {
+		_, _ = fsb.WriteString("file://")
+		fsb.WriteString(cp.MigratePath)
+	} else {
+		fsb.WriteString("file://db/migrations")
+	}
+
+	connStr, err := getMigrateConnStr(cp)
+	if err != nil {
+		return errors.Wrap(err, "Downgrade.1", "Failed to get connection string")
+	}
+
+	m, err := migrate.New(fsb.String(),connStr)
+	if err != nil {
+		return errors.Wrap(err, "Downgrade.2", "Failed to initialize migration")
+	}
+
+	if err := m.Down(); err != nil {
+		return errors.Wrap(err, "Downgrade.3", "Failed to downgrade")
+	}
+
+	return nil
 }
 
 // NewPostgresConn initializes a new Postgres connection
 // FIXME: use a pool?
 func NewPostgresConn(cp *ConnParam) (conn *Connection, err error) {
 	if cp == nil {
-		cp, err = getConnParamFromENV()
+		cp, err = GetConnParamFromENV()
 		if err != nil {
 			return nil, errors.Wrap(err, "NewPostgresConn.1", "Failed to initialize DB")
 		}
