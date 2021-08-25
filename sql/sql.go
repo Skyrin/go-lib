@@ -134,6 +134,10 @@ func Upgrade(cp *ConnParam) (err error) {
 	}
 
 	if err := m.Up(); err != nil {
+		if err == migrate.ErrNoChange {
+			// If no change, then treate as not an error
+			return nil
+		}
 		return errors.Wrap(err, "Upgrade.3", "Failed to upgrade")
 	}
 
