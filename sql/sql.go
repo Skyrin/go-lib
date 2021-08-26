@@ -3,6 +3,7 @@ package sql
 import (
 	"fmt"
 	"os"
+	"net/url"
 	"strings"
 
 	"database/sql"
@@ -87,7 +88,7 @@ func getMigrateConnStr(cp *ConnParam) (connStr string, err error) {
 	_, _ = csb.WriteString("postgres://")
 	_, _ = csb.WriteString(cp.User)
 	_, _ = csb.WriteString(":")
-	_, _ = csb.WriteString(cp.Password)
+	_, _ = csb.WriteString(url.QueryEscape(cp.Password))
 	_, _ = csb.WriteString("@")
 	_, _ = csb.WriteString(cp.Host)
 	_, _ = csb.WriteString(":")
