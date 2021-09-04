@@ -5,22 +5,39 @@ import (
 	"fmt"
 	"time"
 
-	gle "github.com/Skyrin/go-lib/errors"
+	arcerrors "github.com/Skyrin/go-lib/arc/errors"
+	"github.com/Skyrin/go-lib/arc/model"
+	"github.com/Skyrin/go-lib/arc/sqlmodel"
+	"github.com/Skyrin/go-lib/errors"
+	"github.com/Skyrin/go-lib/sql"
 )
 
-// RegisterInput
-type Oauth2Grant struct {
-	Token              string  `json:"accessToken"`
-	TokenExpiry        int     `json:"tokenExpiry"`
-	Scope              string  `json:"scope"`
-	RefreshToken       string  `json:"refreshTOken"`
-	RefreshTokenExpiry int     `json:"refreshTokenExpiry"`
-	TokenType          string  `json:"tokenType"`
-	Client             *Client `json:"-"`
+// Grant
+type Grant struct {
+	Token              string `json:"accessToken"`
+	TokenExpiry        int    `json:"tokenExpiry"`
+	Scope              string `json:"scope"`
+	RefreshToken       string `json:"refreshToken"`
+	RefreshTokenExpiry int    `json:"refreshTokenExpiry"`
+	TokenType          string `json:"tokenType"`
 }
 
-// clientCredentialsGrant get grant via client credentials
-func (c *Client) clientCredentialsGrant(id, secret string) (g *Oauth2Grant, err error) {
+// IsExpired returns if this grant's token has expired
+func (g *Grant) IsAboutToExpireExpire() bool {
+	return g.TokenExpiry < int(time.Now().Unix())-60
+}
+
+func SQLDeploymentGrantToGrant(dg *model.DeploymentGrant) (g *Grant) {
+	return &Grant{
+		Token:              dg.Token,
+		TokenExpiry:        dg.TokenExpiry,
+		RefreshToken:       dg.RefreshToken,
+		RefreshTokenExpiry: dg.RefreshTokenExpiry,
+	}
+}
+
+// grantClientCredentials get grant via client credentials
+func grantClientCredentials(c *Client, id, secret string) (g *Grant, err error) {
 	ri := &RequestItem{
 		Service: "core",
 		Action:  "oauth2.Grant.clientCredentials",
@@ -29,38 +46,31 @@ func (c *Client) clientCredentialsGrant(id, secret string) (g *Oauth2Grant, err 
 		},
 	}
 
-	res, err := c.sendSingleRequestItem(c.deployment.getManageCoreServiceURL(), ri, false)
+	res, err := c.sendSingleRequestItem(c.deployment.getManageCoreServiceURL(), ri, nil)
 	if err != nil {
-		return nil, gle.Wrap(err, "getClientCredentialsGrant.1", "")
+		return nil, errors.Wrap(err, "getClientCredentialsGrant.1", "")
 	}
 
 	if !res.Success {
-		return nil, gle.Wrap(fmt.Errorf("[%s]%s", res.ErrorCode,
+		return nil, errors.Wrap(fmt.Errorf("[%s]%s", res.ErrorCode,
 			res.Message), "getClientCredentialsGrant.2", "")
 	}
 
-	if res.Data != nil {
-		g = &Oauth2Grant{}
-		if err := json.Unmarshal(res.Data, g); err != nil {
-			return nil, gle.Wrap(err, "getClientCredentialsGrant.3", "")
-		}
+	g = &Grant{}
+	if err := json.Unmarshal(res.Data, g); err != nil {
+		return nil, errors.Wrap(err, "getClientCredentialsGrant.3", "")
 	}
-
-	// Add client to grant for quick reference to client id/secret
-	g.Client = c
 
 	return g, nil
 }
 
-// IsExpired returns if this grant's token has expired
-func (g *Oauth2Grant) IsAboutToExpireExpire() bool {
-	return g.TokenExpiry < int(time.Now().Unix())-60
-}
+// refresh refreshes the grant using the passed client id/secret
+// if it is about to expire or if force is true
+func (g *Grant) refresh(c *Client, clientID, secret string,
+	force bool) (refreshed bool, err error) {
 
-// Refresh refreshes the token (if expired)
-func (g *Oauth2Grant) Refresh(c *Client, force bool) (refreshed bool, err error) {
-	// If it is going to expire in the next minute, then refresh it
-	if !force && g.TokenExpiry > int(time.Now().Unix())-60 {
+	// If not forced or isn't about to expire, then do nothing
+	if !force && !g.IsAboutToExpireExpire() {
 		return false, nil
 	}
 
@@ -68,22 +78,22 @@ func (g *Oauth2Grant) Refresh(c *Client, force bool) (refreshed bool, err error)
 		Service: "core",
 		Action:  "oauth2.Grant.refreshToken",
 		Params: []interface{}{
-			c.deployment.Model.ClientID, 
-			c.deployment.Model.ClientSecret, 
+			clientID,
+			secret,
 			g.RefreshToken,
 		},
 	}
-	
-	res, err := c.sendSingleRequestItem(c.deployment.getManageCoreServiceURL(), ri, false)
+
+	res, err := c.sendSingleRequestItem(c.deployment.getManageCoreServiceURL(), ri, nil)
 	if err != nil {
-		return false, gle.Wrap(err, "Oauth2Grant.Refresh.1", "")
+		return false, errors.Wrap(err, "Grant.refresh.1", "")
 	}
 
-	var tmpGrant *Oauth2Grant
+	var tmpGrant *Grant
 	if res.Data != nil {
-		tmpGrant = &Oauth2Grant{}
+		tmpGrant = &Grant{}
 		if err := json.Unmarshal(res.Data, tmpGrant); err != nil {
-			return false, gle.Wrap(err, "Oauth2Grant.Refresh.3", "")
+			return false, errors.Wrap(err, "Grant.refresh.3", "")
 		}
 	}
 
@@ -96,4 +106,41 @@ func (g *Oauth2Grant) Refresh(c *Client, force bool) (refreshed bool, err error)
 	g.Scope = tmpGrant.Scope
 
 	return true, nil
+}
+
+// GrantGetByToken returns a grant by token, looking it up in the deployment
+// grant table
+func GrantGetByToken(db *sql.Connection, token string) (g *Grant, err error) {
+	dg, err := sqlmodel.DeploymentGrantGetByToken(db, token)
+	if err != nil {
+		return nil, errors.Wrap(err, "GrantGetByToken.1", arcerrors.ErrGrantDoesNotExist)
+	}
+
+	return SQLDeploymentGrantToGrant(dg), nil
+}
+
+// Refresh calls refresh internally and saves to the DB
+func GrantRefresh(db *sql.Connection, c *Client, clientID, secret, token string) (g *Grant, err error) {
+	dg, err := sqlmodel.DeploymentGrantGetByToken(db, token)
+	if err != nil {
+		return nil, fmt.Errorf(arcerrors.Unauthorized)
+	}
+
+	g = SQLDeploymentGrantToGrant(dg)
+	if _, err := g.refresh(c, clientID, secret, true); err != nil {
+		return nil, errors.Wrap(err, "Grant.Refresh.1", "")
+	}
+
+	// Update the database record
+	if err := sqlmodel.DeploymentGrantUpdate(db, dg.ID,
+		&sqlmodel.DeploymentGrantUpdateParam{
+			Token:              &g.Token,
+			TokenExpiry:        &g.TokenExpiry,
+			RefreshToken:       &g.RefreshToken,
+			RefreshTokenExpiry: &g.RefreshTokenExpiry,
+		}); err != nil {
+		return nil, errors.Wrap(err, "Grant.Refresh.2", "")
+	}
+
+	return g, nil
 }

@@ -27,7 +27,9 @@ func (c *Client) SendArcsignalEventPublish(eventCode, publishKey string,
 
 	ri := createArcsignalEventPublishRequest(eventCode, publishKey, eventErr)
 
-	if _, err := c.sendSingleRequestItem(c.deployment.getAPICoreServiceURL(), ri, false); err != nil {
+	if _, err := c.sendSingleRequestItem(c.deployment.getAPICoreServiceURL(), 
+		ri, nil); err != nil {
+
 		return err
 	}
 

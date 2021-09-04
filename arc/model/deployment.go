@@ -16,17 +16,3 @@ type Deployment struct {
 	LogEventCode       string
 	LogPublishKey      string
 }
-
-// DeploymentGrant
-type DeploymentGrant struct {
-	ID                 int
-	DeploymentID       int
-	ArcUserID          int
-	Session            string
-	SessionExpiry      int
-	Token              string
-	TokenExpiry        int
-	RefreshToken       string
-	RefreshTokenExpiry int
-	Deployment         *Deployment
-}

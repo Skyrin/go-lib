@@ -1,5 +1,20 @@
 BEGIN;
 
+-- Notifies the specified channel that the specified deployment code, in the
+-- arc_deployment table has been either inserted or updated. An associated
+-- trigger will be created to call this.
+CREATE OR REPLACE FUNCTION arc_deployment_notify()
+RETURNS trigger AS $$
+DECLARE
+BEGIN
+	PERFORM pg_notify('arc_deployment_notify', NEW.arc_deployment_code);
+	-- This is assumed to be an 'after' trigger, so the result is ignored
+	RETURN NULL;
+END;
+$$ LANGUAGE plpgsql
+STRICT IMMUTABLE;
+
+
 -- This defines configured arc deployments
 CREATE TABLE IF NOT EXISTS arc_deployment (
 	arc_deployment_id BIGSERIAL PRIMARY KEY NOT NULL,
@@ -32,6 +47,13 @@ CREATE TABLE IF NOT EXISTS arc_deployment (
 );
 
 
+-- Trigger an arc_deployment notify event after insert or update
+CREATE TRIGGER arc_deployment_notify
+	AFTER INSERT OR UPDATE ON arc_deployment
+	FOR EACH ROW
+	EXECUTE PROCEDURE arc_deployment_notify();
+
+
 -- This stores grants for users retrieved by this application to access
 -- an arc deployment. When a user logs into this application, a grant will
 -- be given to that user and stored into this table. It will also generate
@@ -44,25 +66,33 @@ CREATE TABLE IF NOT EXISTS arc_deployment_grant (
 	arc_deployment_id BIGINT NOT NULL,
 	-- This represents the user id from the deployment that this grant was issued 
 	arc_user_id BIGINT NOT NULL,
-	-- This represents the application session, which the user/UI will have
-	-- a cookie set whenever they login. Or use the token? and force the UI
-	-- to refresh before it expires?
-	arc_deployment_grant_session TEXT NULL,
-	arc_deployment_grant_session_expiry INT NOT NULL,
+	-- TODO: evaluate storing client credentials in a separate table (basically repurposing the
+	--       arc_deployment_store table) - adding app_code (core/cart/arcimedes)
+	--       or store arcimedes/cart grants separately? don't really want to do that...
+	-- The client id that was used to retrieve the grant
+	arc_deployment_grant_client_id TEXT NOT NULL,
+	-- The client secret associated with the client id used to retrieve the grant
+	arc_deployment_grant_client_secret TEXT NOT NULL,
+	-- This is required when refreshing a token
+	-- arc_deployment_grant_client_secret TEXT NOT NULL,
+	-- -- For now, we are treating the token kind of like a session value. The auth expiry
+	-- -- will indicate how long the token will be valid with this application (which may
+	-- -- be longer than the token is valid for)
+	-- arc_deployment_grant_auth_expiry INT NOT NULL,
 	arc_deployment_grant_token TEXT NOT NULL,
 	arc_deployment_grant_token_expiry INT,
+	arc_deployment_grant_token_hash TEXT NOT NULL,
 	arc_deployment_grant_refresh_token TEXT,
 	arc_deployment_grant_refresh_token_expiry INT,
-	arc_deployment_grant_client_id TEXT NOT NULL,
-	arc_deployment_grant_client_secret TEXT NOT NULL,
-	CONSTRAINT arc_deployment_grant_session__ukey UNIQUE (arc_deployment_grant_session),
+	CONSTRAINT arc_deployment_grant_token_hash__ukey
+		UNIQUE (arc_deployment_grant_token_hash),
 	CONSTRAINT arc_deployment_id__fkey FOREIGN KEY (arc_deployment_id)
 		REFERENCES arc_deployment(arc_deployment_id)
 		ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS arc_deployment_grant_session_expiry__key
-	ON arc_deployment_grant(arc_deployment_grant_session_expiry);
+CREATE INDEX IF NOT EXISTS arc_deployment_grant_refresh_token_expiry__key
+	ON arc_deployment_grant(arc_deployment_grant_refresh_token_expiry);
 
 
 -- This defines configured arc deployment store(s). It stores the oauth2

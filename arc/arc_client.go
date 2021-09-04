@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"net/http"
 
+	arcerrors "github.com/Skyrin/go-lib/arc/errors"
 	"github.com/Skyrin/go-lib/arc/sqlmodel"
 	"github.com/Skyrin/go-lib/errors"
 	"github.com/Skyrin/go-lib/sql"
@@ -47,16 +48,16 @@ const (
 
 // Client handles the posting/making arc requests to an arc API server
 type Client struct {
-	BaseURL              string
-	Path                 string
-	Version              int
-	ID                   int
-	Username             string
-	Token                string
-	RequestList          []*RequestItem
-	grant                *Oauth2Grant
-	DB                   *sql.Connection
-	deployment           *Deployment
+	BaseURL     string
+	Path        string
+	Version     int
+	ID          int
+	Username    string
+	Token       string
+	RequestList []*RequestItem
+	// Defines the deployment this client is configured to connect to
+	deployment *Deployment
+	grant      *Grant // Defines grant used for authentication
 }
 
 // NewClient returns a new client to handle requests to the arc notification service
@@ -69,13 +70,25 @@ func NewClient(url string) (c *Client) {
 	}
 }
 
+// Close the client
+func (c *Client) Close() {
+	if c.deployment != nil && c.deployment.DB != nil {
+		_ = c.deployment.DB.DB.Close()
+	}
+}
+
 // NewClientFromDeployment initializes a client from the arc_deployments table
-func NewClientFromDeployment(db *sql.Connection,
+func NewClientFromDeployment(cp *sql.ConnParam,
 	deploymentCode, storeCode string) (c *Client, err error) {
+
+	db, err := sql.NewPostgresConn(cp)
+	if err != nil {
+		return nil, errors.Wrap(err, "NewClientFromDeployment.1", "")
+	}
 
 	d, err := sqlmodel.DeploymentGetByCode(db, deploymentCode)
 	if err != nil {
-		return nil, errors.Wrap(err, "NewClientFromDeployment.1", "")
+		return nil, errors.Wrap(err, "NewClientFromDeployment.2", "")
 	}
 
 	deployment, err := NewDeployment(db, deploymentCode)
@@ -87,7 +100,7 @@ func NewClientFromDeployment(db *sql.Connection,
 			storeCode,
 		)
 		if err != nil {
-			return nil, errors.Wrap(err, "NewClientFromDeployment.2", "")
+			return nil, errors.Wrap(err, "NewClientFromDeployment.3", "")
 		}
 
 		deployment.Store = ds
@@ -99,7 +112,6 @@ func NewClientFromDeployment(db *sql.Connection,
 		Version:    DefaultVersion,
 		ID:         DefaultID,
 		deployment: deployment,
-		DB:         db,
 	}
 
 	return c, nil
@@ -111,10 +123,9 @@ func (c *Client) Connect() (err error) {
 		return errors.Wrap(fmt.Errorf("no deployment configured"), "Client.Connect.1", "")
 	}
 
-	// TODO: perform in separate connection - not sure how going to do that just yet
 	if c.deployment.Model.Token == "" {
 		// If no access token then retrieve one from arc and save it
-		g, err := c.clientCredentialsGrant(c.deployment.Model.ClientID,
+		g, err := grantClientCredentials(c, c.deployment.Model.ClientID,
 			c.deployment.Model.ClientSecret)
 		if err != nil {
 			return errors.Wrap(err, "Client.Connect.2", "")
@@ -128,17 +139,23 @@ func (c *Client) Connect() (err error) {
 	}
 
 	// Else, ensure the token is valid/refreshed
-	c.grant = &Oauth2Grant{
+	c.grant = &Grant{
 		Token:              c.deployment.Model.Token,
 		TokenExpiry:        c.deployment.Model.TokenExpiry,
 		RefreshToken:       c.deployment.Model.RefreshToken,
 		RefreshTokenExpiry: c.deployment.Model.RefreshTokenExpiry,
-		Client:             c,
 	}
 
 	// Ensure the token is valid
-	refreshed, err := c.grant.Refresh(c, false)
+	refreshed, err := c.grant.refresh(c, c.deployment.Model.ClientID,
+		c.deployment.Model.ClientSecret, false)
 	if err != nil {
+		if errors.ContainsError(err, arcerrors.ErrInvalidGrant) {
+			// Failed to refresh, maybe refresh token expired - so try
+			// to get using client credentials
+			c.deployment.Model.Token = ""
+			return c.Connect()
+		}
 		return errors.Wrap(err, "Client.Connect.4", "")
 	}
 
@@ -164,11 +181,6 @@ func (c *Client) SetPath(path string) {
 	} else {
 		c.Path = path
 	}
-}
-
-// SetDB sets the db connection to use for storing auth information
-func (c *Client) SetDB(db *sql.Connection) {
-	c.DB = db
 }
 
 // SetVersion sets the version for the request to the notification service
@@ -211,10 +223,12 @@ func (c *Client) Send(reqItemList []*RequestItem) (resList *ResponseList, err er
 		return nil, errors.Wrap(fmt.Errorf("Request List is empty"), "Send.1", "")
 	}
 
-	reqList := c.newRequestList(reqItemList)
-	if err := reqList.setAuth(c); err != nil {
+	ca, err := c.getClientAuth()
+	if err != nil {
 		return nil, errors.Wrap(err, "Send.2", "")
 	}
+	reqList := c.newRequestList(reqItemList)
+	reqList.setAuth(ca)
 
 	var url string
 	if c.deployment != nil {
@@ -238,18 +252,17 @@ func (c *Client) Send(reqItemList []*RequestItem) (resList *ResponseList, err er
 }
 
 func (c *Client) sendSingleRequestItem(url string, ri *RequestItem,
-	useAuth bool) (res *Response, err error) {
+	ca *clientAuth) (res *Response, err error) {
 
 	reqList := c.newRequestList([]*RequestItem{
 		ri,
 	})
-	if useAuth {
-		if err := reqList.setAuth(c); err != nil {
-			return nil, errors.Wrap(err, "Send.2", "")
-		}
+	if ca != nil {
+		reqList.setAuth(ca)
 	}
 
-	resList, err := c.send(url, reqList, useAuth)
+	// If using an access token for authentication, then retry on failure
+	resList, err := c.send(url, reqList, reqList.AccessToken != "")
 	if err != nil {
 		return nil, errors.Wrap(err, "Client.sendSingleRequestItem.1", "")
 	}
@@ -308,4 +321,47 @@ func (c *Client) getServiceURL() string {
 // GetDeployment return the currently set deployment
 func (c *Client) GetDeployment() (d *Deployment) {
 	return c.deployment
+}
+
+// GetStoreClientID return the currently set store's client id
+func (c *Client) GetStoreClientID() (clientID string) {
+	if c.deployment == nil || c.deployment.Store == nil {
+		return ""
+	}
+
+	return c.deployment.Store.ClientID
+}
+
+// GetStoreClientSecret return the currently set store's client id
+func (c *Client) GetStoreClientSecret() (clientSecret string) {
+	if c.deployment == nil || c.deployment.Store == nil {
+		return ""
+	}
+
+	return c.deployment.Store.ClientSecret
+}
+
+// getClientAuth gets the authentication associated with this client
+func (c *Client) getClientAuth() (ca *clientAuth, err error) {
+	if c == nil {
+		return nil, nil
+	}
+
+	ca = &clientAuth{}
+	if c.deployment != nil {
+		if err := c.Connect(); err != nil {
+			return nil, errors.Wrap(err, "RequestList.setAuth.1", "")
+		}
+		// reqList.AccessToken = c.grant.Token
+		ca.accessToken = c.grant.Token
+		return ca, nil
+	} else if c.Token != "" {
+		ca.token = c.Token
+		if c.Username != "" {
+			ca.username = c.Username
+		}
+	}
+
+	// No auth configured, so return nil
+	return nil, nil
 }

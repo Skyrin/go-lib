@@ -1,9 +1,5 @@
 package arc
 
-import (
-	"github.com/Skyrin/go-lib/errors"
-)
-
 // RequestList formats a request to send to an arc API server
 type RequestList struct {
 	Format      string         `json:"format"`
@@ -49,25 +45,16 @@ func (c *Client) newRequestList(reqItemList []*RequestItem) (reqList *RequestLis
 	return reqList
 }
 
-// setRequestListAuth sets the authentication parameters to be used in the request call
-func (reqList *RequestList) setAuth(c *Client) (err error) {
-	if c == nil {
+// setAuth sets the authentication parameters to be used in the request call
+func (reqList *RequestList) setAuth(ca *clientAuth) {
+	if ca == nil {
 		return
 	}
 
-	if c.deployment != nil {
-		if err := c.Connect(); err != nil {
-			return errors.Wrap(err, "RequestList.setAuth.1", "")
-		}
-		reqList.AccessToken = c.grant.Token
+	if ca.accessToken != "" {
+		reqList.AccessToken = ca.accessToken
 	} else {
-		if c.Username != "" {
-			reqList.Username = c.Username
-		}
-		if c.Token != "" {
-			reqList.Token = c.Token
-		}
+		reqList.Token = ca.token
+		reqList.Username = ca.username
 	}
-
-	return nil
 }

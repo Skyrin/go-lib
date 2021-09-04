@@ -31,7 +31,7 @@ func (d *Deployment) Refresh() {
 
 // UpdateGrant updates this deployment's database record with the new
 // grant info (token/expiry and refresh token/expiry)
-func (d *Deployment) UpdateGrant(g *Oauth2Grant) (err error) {
+func (d *Deployment) UpdateGrant(g *Grant) (err error) {
 	if err := sqlmodel.DeploymentUpdate(d.DB, d.Model.ID, &sqlmodel.DeploymentUpdateParam{
 		Token:              &g.Token,
 		TokenExpiry:        &g.TokenExpiry,

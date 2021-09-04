@@ -53,16 +53,20 @@ func (c *Client) CartUpsertCustomer(storeCode string,
 		Options: rio,
 	}
 
+	ca, err := c.getClientAuth()
+	if err != nil {
+		return nil, gle.Wrap(err, "CartUpsertCustomer.1", "")
+	}
 	res, err := c.sendSingleRequestItem(
 		c.deployment.getManageCartServiceURL(storeCode),
 		ri,
-		true)
+		ca)
 	if err != nil {
 		if res != nil && res.ErrorCode == "E01FAAE" {
 			// User already exists in the system, return specific error
 			return nil, fmt.Errorf(ErrCartCustomerExists)
 		} else {
-			return nil, gle.Wrap(err, "CartUpsertCustomer.1", "")
+			return nil, gle.Wrap(err, "CartUpsertCustomer.2", "")
 		}
 	}
 
@@ -89,12 +93,16 @@ func CartGetCustomerByUsername(c *Client, storeCode, username string) (cust *Car
 		Options: rio,
 	}
 
+	ca, err := c.getClientAuth()
+	if err != nil {
+		return nil, gle.Wrap(err, "CartUpsertCustomer.1", "")
+	}
 	res, err := c.sendSingleRequestItem(
 		c.deployment.getManageCartServiceURL(storeCode),
 		ri,
-		true)
+		ca)
 	if err != nil {
-		return nil, gle.Wrap(err, "CartGetCustomer.1", "")
+		return nil, gle.Wrap(err, "CartGetCustomer.2", "")
 	}
 
 	custList := []*CartCustomer{}
