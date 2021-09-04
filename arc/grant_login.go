@@ -28,11 +28,14 @@ type GrantUserinfo struct {
 // The grant will also be stored in the arc_deployment_grant table, along with a unique session
 // so that a user in the same session can re-use the grant and the system can refresh the access
 // token as needed (instead of generating new ones every time).
-func (c *Client) GrantLogin(clientID, username, password string) (g *Grant, err error) {
-	// Double check user exists in our system
+func (c *Client) GrantLogin(credentialID int, username, password string) (g *Grant, err error) {
+	credential, err := sqlmodel.CredentialGetByID(c.deployment.DB, credentialID)
+	if err != nil {
+		return nil, gle.Wrap(err, "GrantLogin.1", "")
+	}
 
 	params := []interface{}{
-		clientID,
+		credential.ClientID,
 		username,
 		password,
 	}
@@ -45,25 +48,25 @@ func (c *Client) GrantLogin(clientID, username, password string) (g *Grant, err 
 
 	ca, err := c.getClientAuth()
 	if err != nil {
-		return nil, gle.Wrap(err, "GrantLogin.1", "")
+		return nil, gle.Wrap(err, "GrantLogin.2", "")
 	}
 	res, err := c.sendSingleRequestItem(
 		c.deployment.getManageCoreServiceURL(),
 		ri,
 		ca)
 	if err != nil {
-		return nil, gle.Wrap(err, "GrantLogin.2", "")
+		return nil, gle.Wrap(err, "GrantLogin.3", "")
 	}
 
 	g = &Grant{}
 	if err := json.Unmarshal(res.Data, g); err != nil {
-		return nil, gle.Wrap(err, "GrantLogin.3", "")
+		return nil, gle.Wrap(err, "GrantLogin.4", "")
 	}
 
 	// Get the arc user id associated with this token
 	gui, err := c.GrantUserinfo(g.Token)
 	if err != nil {
-		return nil, gle.Wrap(err, "GrantLogin.4", "")
+		return nil, gle.Wrap(err, "GrantLogin.5", "")
 	}
 
 	// Save the grant in the arc_deployment_grant table.
@@ -80,14 +83,13 @@ func (c *Client) GrantLogin(clientID, username, password string) (g *Grant, err 
 	if _, err := sqlmodel.DeploymentGrantInsert(c.deployment.DB, &sqlmodel.DeploymentGrantInsertParam{
 		DeploymentID:       c.deployment.Model.ID,
 		ArcUserID:          gui.ID,
-		ClientID:           clientID,
-		ClientSecret:       "", // TODO: use arc_credentials_id instead (pass in credentials object as well)
+		CredentialID:       credential.ID,
 		Token:              g.Token,
 		TokenExpiry:        g.TokenExpiry,
 		RefreshToken:       g.RefreshToken,
 		RefreshTokenExpiry: g.RefreshTokenExpiry,
 	}); err != nil {
-		return nil, gle.Wrap(err, "GrantLogin.5", "")
+		return nil, gle.Wrap(err, "GrantLogin.6", "")
 	}
 
 	return g, nil

@@ -8,8 +8,8 @@ import (
 	gle "github.com/Skyrin/go-lib/errors"
 )
 
-// CartCustomerInput
-type CartCustomer struct {
+// ArcimedesUser
+type ArcimedesUser struct {
 	ID         int        `json:"id"`
 	ArcUserID  int        `json:"-"`
 	Username   string     `json:"username"`
@@ -21,48 +21,41 @@ type CartCustomer struct {
 	Person     CorePerson `json:"person"`
 }
 
-type CorePerson struct {
-	FirstName  string `json:"firstName"`
-	MiddleName string `json:"middleName"`
-	LastName   string `json:"lastName"`
-}
-
-// RegisterCartCustomer attempts to create the cart customer in arc. If the
-// customer already exists in arc, will fetch the arc user id (by the passed
+// RegisterArcimedesUser attempts to create the arcimedes user in arc. If the
+// user already exists in arc, will fetch the arc user id (by the passed
 // username) and then make the call to update it. This should only be called
-// when registering a new cart customer, as it will reset the password
-func (c *Client) RegisterCartCustomer(storeCode string,
-	ci *CartCustomer, retry bool) (cust *CartCustomer, err error) {
+// when registering a new arcimedes user, as it will reset the password
+func (c *Client) RegisterArcimedesUser(ui *ArcimedesUser, retry bool) (au *ArcimedesUser, err error) {
 
 	var params []interface{}
-	if ci.ArcUserID > 0 {
-		params = append(params, ci.ArcUserID)
+	if ui.ArcUserID > 0 {
+		params = append(params, ui.ArcUserID)
 	} else {
 		params = append(params, nil)
 	}
 
 	rio := RequestItemOption{}
 	rio.Value = map[string]interface{}{}
-	rio.Value["username"] = ci.Username
-	rio.Value["email"] = ci.Email
-	rio.Value["password"] = ci.Password
-	rio.Value["firstName"] = ci.FirstName
-	rio.Value["middleName"] = ci.MiddleName
-	rio.Value["lastName"] = ci.LastName
+	rio.Value["username"] = ui.Email
+	rio.Value["email"] = ui.Email
+	rio.Value["password"] = ui.Password
+	rio.Value["firstName"] = ui.FirstName
+	rio.Value["middleName"] = ui.MiddleName
+	rio.Value["lastName"] = ui.LastName
 
 	ri := &RequestItem{
-		Service: "cart",
-		Action:  "Customer.update",
+		Service: "arcimedes",
+		Action:  "User.update",
 		Params:  params,
 		Options: rio,
 	}
 
 	ca, err := c.getClientAuth()
 	if err != nil {
-		return nil, gle.Wrap(err, "RegisterCartCustomer.1", "")
+		return nil, gle.Wrap(err, "ArcimedesUpsertUser.1", "")
 	}
 	res, err := c.sendSingleRequestItem(
-		c.deployment.getManageCartServiceURL(storeCode),
+		c.deployment.getManageArcimedesServiceURL(),
 		ri,
 		ca)
 	if err != nil {
@@ -76,14 +69,14 @@ func (c *Client) RegisterCartCustomer(storeCode string,
 			// assume the user needs to be recreated and will just update the
 			// existing users information.
 			// First now fetch that user
-			cust, err = c.CartGetCustomerByUsername(storeCode, ci.Username)
+			au, err = c.ArcimedesUserGetByUsername(ui.Username)
 			if err != nil {
 				return nil, gle.Wrap(err, "RegisterCartCustomer.2", "")
 			}
 
 			// Try to upsert with the id now
-			ci.ArcUserID = cust.ID
-			cust, err = c.RegisterCartCustomer(storeCode, ci, false)
+			ui.ArcUserID = au.ID
+			au, err = c.RegisterArcimedesUser(ui, false)
 			if err != nil {
 				return nil, gle.Wrap(err, "RegisterCartCustomer.3", "")
 			}
@@ -91,17 +84,17 @@ func (c *Client) RegisterCartCustomer(storeCode string,
 			return nil, gle.Wrap(err, "RegisterCartCustomer.4", "")
 		}
 	} else {
-		cust = &CartCustomer{}
-		if err := json.Unmarshal(res.Data, cust); err != nil {
-			return nil, gle.Wrap(err, "CartUpsertCustomer.5", "")
+		au = &ArcimedesUser{}
+		if err := json.Unmarshal(res.Data, au); err != nil {
+			return nil, gle.Wrap(err, "ArcimedesUpsertUser.3", "")
 		}
 	}
 
-	return cust, nil
+	return au, nil
 }
 
-// CartGetCustomerByUsername fetches the customer by username from the specified store
-func (c *Client) CartGetCustomerByUsername(storeCode, username string) (cust *CartCustomer, err error) {
+// ArcimedesUserGetByUsername fetches the arcimedes user by username
+func (c *Client) ArcimedesUserGetByUsername(username string) (au *ArcimedesUser, err error) {
 	var params []interface{}
 
 	rio := RequestItemOption{}
@@ -109,32 +102,32 @@ func (c *Client) CartGetCustomerByUsername(storeCode, username string) (cust *Ca
 	rio.Filter["username"] = username
 
 	ri := &RequestItem{
-		Service: "cart",
-		Action:  "Customer.get",
+		Service: "arcimedes",
+		Action:  "User.get",
 		Params:  params,
 		Options: rio,
 	}
 
 	ca, err := c.getClientAuth()
 	if err != nil {
-		return nil, gle.Wrap(err, "CartUpsertCustomer.1", "")
+		return nil, gle.Wrap(err, "ArcimedesUserGetByUsername.1", "")
 	}
 	res, err := c.sendSingleRequestItem(
-		c.deployment.getManageCartServiceURL(storeCode),
+		c.deployment.getManageArcimedesServiceURL(),
 		ri,
 		ca)
 	if err != nil {
-		return nil, gle.Wrap(err, "CartGetCustomer.2", "")
+		return nil, gle.Wrap(err, "ArcimedesUserGetByUsername.2", "")
 	}
 
-	custList := []*CartCustomer{}
-	if err := json.Unmarshal(res.Data, &custList); err != nil {
-		return nil, gle.Wrap(err, "CartGetCustomer.3", "")
+	auList := []*ArcimedesUser{}
+	if err := json.Unmarshal(res.Data, &auList); err != nil {
+		return nil, gle.Wrap(err, "ArcimedesUserGetByUsername.3", "")
 	}
 
-	if len(custList) != 1 {
-		return nil, fmt.Errorf(arcerrors.ErrCartCustomerNotExists)
+	if len(auList) != 1 {
+		return nil, fmt.Errorf(arcerrors.ErrArcimedesUserNotExists)
 	}
 
-	return custList[0], nil
+	return auList[0], nil
 }

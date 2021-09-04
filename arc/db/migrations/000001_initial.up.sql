@@ -54,6 +54,23 @@ CREATE TRIGGER arc_deployment_notify
 	EXECUTE PROCEDURE arc_deployment_notify();
 
 
+-- Stores configured oauth2 arc credentials. Note, a deployments credentials
+-- are stored in the arc_deployment table and solely used for API calls on
+-- behalf of this app. These client credentials are used for user logins
+-- (i.e. cart customer and arcimedes users, possibly core if there is a use
+-- case). It is up to the application to configure how to use these credentials.
+CREATE TABLE IF NOT EXISTS arc_credential (
+	arc_credential_id BIGSERIAL PRIMARY KEY NOT NULL,
+	arc_deployment_id BIGINT NOT NULL,
+	arc_credential_name TEXT NOT NULL,
+	arc_credential_client_id TEXT NOT NULL,
+	arc_credential_client_secret TEXT NOT NULL,
+	CONSTRAINT arc_deployment_id__fkey FOREIGN KEY (arc_deployment_id)
+		REFERENCES arc_deployment(arc_deployment_id)
+		ON DELETE CASCADE
+);
+
+
 -- This stores grants for users retrieved by this application to access
 -- an arc deployment. When a user logs into this application, a grant will
 -- be given to that user and stored into this table. It will also generate
@@ -66,19 +83,8 @@ CREATE TABLE IF NOT EXISTS arc_deployment_grant (
 	arc_deployment_id BIGINT NOT NULL,
 	-- This represents the user id from the deployment that this grant was issued 
 	arc_user_id BIGINT NOT NULL,
-	-- TODO: evaluate storing client credentials in a separate table (basically repurposing the
-	--       arc_deployment_store table) - adding app_code (core/cart/arcimedes)
-	--       or store arcimedes/cart grants separately? don't really want to do that...
-	-- The client id that was used to retrieve the grant
-	arc_deployment_grant_client_id TEXT NOT NULL,
-	-- The client secret associated with the client id used to retrieve the grant
-	arc_deployment_grant_client_secret TEXT NOT NULL,
-	-- This is required when refreshing a token
-	-- arc_deployment_grant_client_secret TEXT NOT NULL,
-	-- -- For now, we are treating the token kind of like a session value. The auth expiry
-	-- -- will indicate how long the token will be valid with this application (which may
-	-- -- be longer than the token is valid for)
-	-- arc_deployment_grant_auth_expiry INT NOT NULL,
+	-- Reference to client credentials used for the grant
+	arc_credential_id BIGINT NOT NULL,
 	arc_deployment_grant_token TEXT NOT NULL,
 	arc_deployment_grant_token_expiry INT,
 	arc_deployment_grant_token_hash TEXT NOT NULL,
@@ -88,30 +94,13 @@ CREATE TABLE IF NOT EXISTS arc_deployment_grant (
 		UNIQUE (arc_deployment_grant_token_hash),
 	CONSTRAINT arc_deployment_id__fkey FOREIGN KEY (arc_deployment_id)
 		REFERENCES arc_deployment(arc_deployment_id)
+		ON DELETE CASCADE,
+	CONSTRAINT arc_credential_id__fkey FOREIGN KEY (arc_credential_id)
+		REFERENCES arc_credential(arc_credential_id)
 		ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS arc_deployment_grant_refresh_token_expiry__key
 	ON arc_deployment_grant(arc_deployment_grant_refresh_token_expiry);
-
-
--- This defines configured arc deployment store(s). It stores the oauth2
--- client id and secret (secret not currently used) so that this application
--- can login (get access tokens) on behalf of users
-CREATE TABLE IF NOT EXISTS arc_deployment_store (
-	arc_deployment_id BIGINT NOT NULL,
-	-- The unique store code for this deployment
-	arc_deployment_store_code TEXT NOT NULL,
-	-- The client id for the store. This is required in order to
-	-- use ouath2.Grant.login with a store customer.
-	arc_deployment_store_client_id TEXT NOT NULL,
-	-- The client secret for the store (not currently used)
-	arc_deployment_store_client_secret TEXT NOT NULL,
-	PRIMARY KEY (arc_deployment_id, arc_deployment_store_code),
-	CONSTRAINT arc_deployment_id__fkey FOREIGN KEY (arc_deployment_id)
-		REFERENCES arc_deployment(arc_deployment_id)
-		ON DELETE CASCADE
-);
-
 
 COMMIT;

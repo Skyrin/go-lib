@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	arcerrors "github.com/Skyrin/go-lib/arc/errors"
 	"github.com/Skyrin/go-lib/arc/model"
-	"github.com/Skyrin/go-lib/arc/errors"
 	gle "github.com/Skyrin/go-lib/errors"
 	"github.com/Skyrin/go-lib/sql"
 )
@@ -40,8 +40,7 @@ type DeploymentGrantUpdateParam struct {
 type DeploymentGrantInsertParam struct {
 	DeploymentID       int
 	ArcUserID          int
-	ClientID           string
-	ClientSecret       string
+	CredentialID       int
 	Token              string
 	TokenExpiry        int
 	RefreshToken       string
@@ -52,19 +51,19 @@ func deploymentGrantHashToken(token string) string {
 	h := crypto.SHA512.New()
 	defer h.Reset()
 	_, _ = h.Write([]byte(token))
-	return fmt.Sprintf("%x",h.Sum(nil))
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
 // DeploymentGrantInsert performs insert
 func DeploymentGrantInsert(db *sql.Connection, ip *DeploymentGrantInsertParam) (id int, err error) {
 	ib := db.Insert(DeploymentGrantTableName).
 		Columns(`arc_deployment_id,arc_user_id,
-		arc_deployment_grant_client_id,arc_deployment_grant_client_secret,
+		arc_credential_id,
 		arc_deployment_grant_token,arc_deployment_grant_token_expiry,
 		arc_deployment_grant_token_hash,
 		arc_deployment_grant_refresh_token,arc_deployment_grant_refresh_token_expiry`).
 		Values(ip.DeploymentID, ip.ArcUserID,
-			ip.ClientID, ip.ClientSecret,
+			ip.CredentialID,
 			ip.Token, ip.TokenExpiry,
 			deploymentGrantHashToken(ip.Token),
 			ip.RefreshToken, ip.RefreshTokenExpiry,
@@ -89,7 +88,7 @@ func DeploymentGrantUpdate(db *sql.Connection, id int, up *DeploymentGrantUpdate
 
 	if up.Token != nil {
 		ub = ub.Set("arc_deployment_grant_token", *up.Token)
-		ub = ub.Set("arc_deployment_grant_token_hash", 
+		ub = ub.Set("arc_deployment_grant_token_hash",
 			deploymentGrantHashToken(*up.Token))
 	}
 
@@ -121,7 +120,7 @@ func DeploymentGrantGet(db *sql.Connection,
 	}
 
 	fields := `arc_deployment_grant_id,arc_deployment_id,arc_user_id,
-	arc_deployment_grant_client_id,arc_deployment_grant_client_secret,
+	arc_credential_id,
 	arc_deployment_grant_token,arc_deployment_grant_token_expiry,
 	arc_deployment_grant_refresh_token,arc_deployment_grant_refresh_token_expiry`
 
@@ -176,7 +175,7 @@ func DeploymentGrantGet(db *sql.Connection,
 	for rows.Next() {
 		dg := &model.DeploymentGrant{}
 		if err := rows.Scan(&dg.ID, &dg.DeploymentID, &dg.ArcUserID,
-			&dg.ClientID, &dg.ClientSecret,
+			&dg.CredentialID,
 			&dg.Token, &dg.TokenExpiry,
 			&dg.RefreshToken, &dg.RefreshTokenExpiry); err != nil {
 			return nil, 0, gle.Wrap(err, "DeploymentGrantGet.4", "")

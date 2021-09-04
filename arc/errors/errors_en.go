@@ -1,12 +1,14 @@
 package arcerrors
 
 const (
-	UnknownInternalServerError = "arc.01: Unknown Internal Server Error"
-	Unauthorized               = "arc.02: Unauthorized"
-	Unauthenticated            = "arc.03: Authentication Failed"
-	ErrCartCustomerExists      = "arc.04: Cart Customer Already Exists"
-	ErrCartCustomerNotExists   = "arc.05: Cart Customer Does Not Exist"
-	ErrCartStoreNotSet         = "arc.06: Cart Store Not Set"
-	ErrGrantDoesNotExist       = "arc.07: Grant does not exist"
-	ErrInvalidGrant            = "invalid_grant"
+	UnknownInternalServerError = "ARC.01: Unknown Internal Server Error"
+	Unauthorized               = "ARC.02: Unauthorized"
+	Unauthenticated            = "ARC.03: Authentication Failed"
+	ErrCartCustomerExists      = "ARC.04: Cart customer already exist"
+	ErrCartCustomerNotExists   = "ARC.05: Cart customer does not exist"
+	ErrGrantDoesNotExist       = "ARC.06: Grant does not exist"
+	ErrCredentialDoesNotExist  = "ARC.07: Credential does not exist"
+	ErrInvalidGrant            = "ARC.08: invalid_grant"
+	ErrArcimedesUserExists     = "ARC.09: Arcimedes user already exists"
+	ErrArcimedesUserNotExists  = "ARC.0A: Arcimedes user does not exist"
 )

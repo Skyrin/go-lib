@@ -9,6 +9,7 @@ import (
 	"github.com/Skyrin/go-lib/arc/model"
 	"github.com/Skyrin/go-lib/arc/sqlmodel"
 	"github.com/Skyrin/go-lib/errors"
+	gle "github.com/Skyrin/go-lib/errors"
 	"github.com/Skyrin/go-lib/sql"
 )
 
@@ -108,27 +109,21 @@ func (g *Grant) refresh(c *Client, clientID, secret string,
 	return true, nil
 }
 
-// GrantGetByToken returns a grant by token, looking it up in the deployment
-// grant table
-func GrantGetByToken(db *sql.Connection, token string) (g *Grant, err error) {
-	dg, err := sqlmodel.DeploymentGrantGetByToken(db, token)
+// Refresh calls refresh internally and saves to the DB
+func GrantRefresh(db *sql.Connection, c *Client, credentialID int, token string) (g *Grant, err error) {
+	credential, err := sqlmodel.CredentialGetByID(c.deployment.DB, credentialID)
 	if err != nil {
-		return nil, errors.Wrap(err, "GrantGetByToken.1", arcerrors.ErrGrantDoesNotExist)
+		return nil, gle.Wrap(err, "GrantRefresh.1", "")
 	}
 
-	return SQLDeploymentGrantToGrant(dg), nil
-}
-
-// Refresh calls refresh internally and saves to the DB
-func GrantRefresh(db *sql.Connection, c *Client, clientID, secret, token string) (g *Grant, err error) {
 	dg, err := sqlmodel.DeploymentGrantGetByToken(db, token)
 	if err != nil {
 		return nil, fmt.Errorf(arcerrors.Unauthorized)
 	}
 
 	g = SQLDeploymentGrantToGrant(dg)
-	if _, err := g.refresh(c, clientID, secret, true); err != nil {
-		return nil, errors.Wrap(err, "Grant.Refresh.1", "")
+	if _, err := g.refresh(c, credential.ClientID, credential.ClientSecret, true); err != nil {
+		return nil, errors.Wrap(err, "Grant.Refresh.2", "")
 	}
 
 	// Update the database record
@@ -139,7 +134,7 @@ func GrantRefresh(db *sql.Connection, c *Client, clientID, secret, token string)
 			RefreshToken:       &g.RefreshToken,
 			RefreshTokenExpiry: &g.RefreshTokenExpiry,
 		}); err != nil {
-		return nil, errors.Wrap(err, "Grant.Refresh.2", "")
+		return nil, errors.Wrap(err, "Grant.Refresh.3", "")
 	}
 
 	return g, nil

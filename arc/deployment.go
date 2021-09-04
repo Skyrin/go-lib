@@ -12,10 +12,10 @@ import (
 )
 
 type Deployment struct {
-	DB       *sql.Connection
-	Model    *model.Deployment
-	Listener *DeploymentNotify
-	Store    *model.DeploymentStore
+	DB        *sql.Connection
+	Model     *model.Deployment
+	Listener  *DeploymentNotify
+	StoreCode string
 }
 
 // Refresh updates this objects properties from the corresponding record in
@@ -88,7 +88,7 @@ func (d *Deployment) getManageCoreServiceURL() string {
 }
 
 // getAPIArcimedesServiceURL returns arcimedes service URL for arc API domain
-func (d *Deployment) getAPIArcimedesServiceURL(useAPIURL bool) string {
+func (d *Deployment) getAPIArcimedesServiceURL() string {
 	var sb strings.Builder
 	_, _ = sb.WriteString(d.Model.APIURL)
 	_, _ = sb.WriteString(arcimedesPath)
@@ -96,7 +96,7 @@ func (d *Deployment) getAPIArcimedesServiceURL(useAPIURL bool) string {
 }
 
 // getManageArcimedesServiceURL returns arcimedes service URL for arc manager domain
-func (d *Deployment) getManageArcimedesServiceURL(useAPIURL bool) string {
+func (d *Deployment) getManageArcimedesServiceURL() string {
 	var sb strings.Builder
 	_, _ = sb.WriteString(d.Model.ManageURL)
 	_, _ = sb.WriteString(arcimedesPath)

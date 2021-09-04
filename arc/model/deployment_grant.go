@@ -5,8 +5,7 @@ type DeploymentGrant struct {
 	ID                 int
 	DeploymentID       int
 	ArcUserID          int
-	ClientID           string
-	ClientSecret       string
+	CredentialID       int
 	Token              string
 	TokenExpiry        int
 	RefreshToken       string

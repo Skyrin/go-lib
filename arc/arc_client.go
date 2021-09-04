@@ -93,18 +93,7 @@ func NewClientFromDeployment(cp *sql.ConnParam,
 
 	deployment, err := NewDeployment(db, deploymentCode)
 
-	if storeCode != "" {
-		ds, err := sqlmodel.DeploymentStoreGetByCodeAndDeploymentID(
-			db,
-			d.ID,
-			storeCode,
-		)
-		if err != nil {
-			return nil, errors.Wrap(err, "NewClientFromDeployment.3", "")
-		}
-
-		deployment.Store = ds
-	}
+	deployment.StoreCode = storeCode
 
 	c = &Client{
 		BaseURL:    d.ManageURL,
@@ -232,8 +221,8 @@ func (c *Client) Send(reqItemList []*RequestItem) (resList *ResponseList, err er
 
 	var url string
 	if c.deployment != nil {
-		if c.deployment.Store != nil {
-			url = c.deployment.getAPICartServiceURL(c.deployment.Store.Code)
+		if c.deployment.StoreCode != "" {
+			url = c.deployment.getAPICartServiceURL(c.deployment.StoreCode)
 		} else {
 			url = c.deployment.getManageCoreServiceURL()
 		}
@@ -321,24 +310,6 @@ func (c *Client) getServiceURL() string {
 // GetDeployment return the currently set deployment
 func (c *Client) GetDeployment() (d *Deployment) {
 	return c.deployment
-}
-
-// GetStoreClientID return the currently set store's client id
-func (c *Client) GetStoreClientID() (clientID string) {
-	if c.deployment == nil || c.deployment.Store == nil {
-		return ""
-	}
-
-	return c.deployment.Store.ClientID
-}
-
-// GetStoreClientSecret return the currently set store's client id
-func (c *Client) GetStoreClientSecret() (clientSecret string) {
-	if c.deployment == nil || c.deployment.Store == nil {
-		return ""
-	}
-
-	return c.deployment.Store.ClientSecret
 }
 
 // getClientAuth gets the authentication associated with this client
