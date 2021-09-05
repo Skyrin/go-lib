@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS arc_deployment (
 
 
 -- Trigger an arc_deployment notify event after insert or update
+DROP TRIGGER IF EXISTS arc_deployment_notify ON arc_deployment;
 CREATE TRIGGER arc_deployment_notify
 	AFTER INSERT OR UPDATE ON arc_deployment
 	FOR EACH ROW
