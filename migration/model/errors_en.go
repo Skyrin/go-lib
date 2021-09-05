@@ -9,4 +9,5 @@ const (
 	ErrMigrationNone                   = "SQLM.06: No migrations exist yet"
 	ErrMigrationFileNameInvalid        = "SQLM.07: Invalid migration file name"
 	ErrMigrationFileNameVersionInvalid = "SQLM.08: Invalid migration file name version"
+	ErrMigrationInstallFailed          = "SQLM.09: Migrator installation failed"
 )

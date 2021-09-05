@@ -204,7 +204,9 @@ func MigrationGetLatest(db *sql.Connection, code string) (m *model.Migration, er
 	})
 	if err != nil {
 		// Check for table does not exist error
-		// return nil, fmt.Errorf(model.ErrMigrationNotInstalled)
+		if errors.IsPQError(err, errors.PQErr42P01) {
+			return nil, fmt.Errorf(model.ErrMigrationNotInstalled)
+		}
 		return nil, errors.Wrap(err, "MigrationGetLatest.1", "")
 	}
 
