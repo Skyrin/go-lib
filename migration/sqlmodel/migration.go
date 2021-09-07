@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	MigrationTableName     = "arc_migration"
-	MigrationDefaultSortBy = "arc_migration_id"
+	MigrationTableName     = "skyrin_migration"
+	MigrationDefaultSortBy = "skyrin_migration_id"
 )
 
 // MigrationGetParam get params
@@ -47,13 +47,13 @@ type MigrationInsertParam struct {
 // MigrationInsert performs insert
 func MigrationInsert(db *sql.Connection, ip *MigrationInsertParam) (id int, err error) {
 	ib := db.Insert(MigrationTableName).
-		Columns(`arc_migration_code,arc_migration_version,
-		arc_migration_status,arc_migration_sql,arc_migration_err,
+		Columns(`skyrin_migration_code,skyrin_migration_version,
+		skyrin_migration_status,skyrin_migration_sql,skyrin_migration_err,
 		created_on,updated_on`).
 		Values(ip.Code, ip.Version,
 			ip.Status, ip.SQL, ip.Err,
 			"now()", "now()",
-		).Suffix("RETURNING arc_migration_id")
+		).Suffix("RETURNING skyrin_migration_id")
 
 	id, err = db.ExecInsertReturningID(ib)
 	if err != nil {
@@ -67,26 +67,26 @@ func MigrationInsert(db *sql.Connection, ip *MigrationInsertParam) (id int, err 
 func MigrationUpdate(db *sql.Connection, id int, up *MigrationUpdateParam) (err error) {
 	ub := db.Update(MigrationTableName).
 		Set("updated_on", "now()").
-		Where("arc_migration_id=?", id)
+		Where("skyrin_migration_id=?", id)
 
 	if up == nil {
 		return nil // Nothing to update
 	}
 
 	if up.Version != nil {
-		ub = ub.Set("arc_migration_version", *up.Version)
+		ub = ub.Set("skyrin_migration_version", *up.Version)
 	}
 
 	if up.Status != nil {
-		ub = ub.Set("arc_migration_status", *up.Status)
+		ub = ub.Set("skyrin_migration_status", *up.Status)
 	}
 
 	if up.SQL != nil {
-		ub = ub.Set("arc_migration_sql", *up.SQL)
+		ub = ub.Set("skyrin_migration_sql", *up.SQL)
 	}
 
 	if up.Err != nil {
-		ub = ub.Set("arc_migration_err", *up.Err)
+		ub = ub.Set("skyrin_migration_err", *up.Err)
 	}
 
 	err = db.ExecUpdate(ub)
@@ -104,8 +104,8 @@ func MigrationGet(db *sql.Connection,
 		p.Limit = 1
 	}
 
-	fields := `arc_migration_id,arc_migration_code,arc_migration_version,
-	arc_migration_status,arc_migration_sql,arc_migration_err,
+	fields := `skyrin_migration_id,skyrin_migration_code,skyrin_migration_version,
+	skyrin_migration_status,skyrin_migration_sql,skyrin_migration_err,
 	created_on,updated_on`
 
 	sb := db.Select("{fields}").
@@ -113,19 +113,19 @@ func MigrationGet(db *sql.Connection,
 		Limit(p.Limit)
 
 	if p.ID != nil && *p.ID >= 0 {
-		sb = sb.Where("arc_migration_id=?", *p.ID)
+		sb = sb.Where("skyrin_migration_id=?", *p.ID)
 	}
 
 	if p.Version != nil && *p.Version >= 0 {
-		sb = sb.Where("arc_migration_version=?", *p.Version)
+		sb = sb.Where("skyrin_migration_version=?", *p.Version)
 	}
 
 	if p.Code != nil {
-		sb = sb.Where("arc_migration_code=?", *p.Code)
+		sb = sb.Where("skyrin_migration_code=?", *p.Code)
 	}
 
 	if p.Status != nil {
-		sb = sb.Where("arc_migration_status=?", *p.Status)
+		sb = sb.Where("skyrin_migration_status=?", *p.Status)
 	}
 
 	stmt, bindList, err := sb.ToSql()
@@ -144,11 +144,11 @@ func MigrationGet(db *sql.Connection,
 	sb = sb.Offset(uint64(p.Offset))
 
 	if p.OrderByID != "" {
-		sb = sb.OrderBy(fmt.Sprintf("arc_migration_id %s", p.OrderByID))
+		sb = sb.OrderBy(fmt.Sprintf("skyrin_migration_id %s", p.OrderByID))
 	}
 
 	if p.OrderByVersion != "" {
-		sb = sb.OrderBy(fmt.Sprintf("arc_migration_version %s", p.OrderByVersion))
+		sb = sb.OrderBy(fmt.Sprintf("skyrin_migration_version %s", p.OrderByVersion))
 	}
 
 	stmt, bindList, err = sb.ToSql()

@@ -66,7 +66,7 @@ func (c *Client) RegisterCartCustomer(storeCode string,
 		ri,
 		ca)
 	if err != nil {
-		if res != nil && res.ErrorCode == "E01FAAE" && retry {
+		if res != nil && res.ErrorCode == E01FAAE_UserAlreadyExists && retry {
 			// User already exists in the system, The app is still requesting
 			// to register the customer though, so maybe it did not save
 			// properly. This may have happened if the call to arc succeeded

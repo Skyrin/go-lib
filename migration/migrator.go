@@ -37,7 +37,7 @@ import (
 var migrations embed.FS
 
 const (
-	MIGRATION_TABLE = "arc_migration"
+	MIGRATION_TABLE = "skyrin_migration"
 	MIGRATION_PATH  = "db/migrations"
 	MIGRATION_CODE  = "arc-migrations"
 )
@@ -166,7 +166,7 @@ func (m *Migrator) Upgrade() (err error) {
 }
 
 // checkShouldRunFile verifies if the file should be processed or not. It will retrieve the
-// associated migration record (code/version) from the arc_migration table. If it does not exist,
+// associated migration record (code/version) from the skyrin_migration table. If it does not exist,
 // then it will indicate to proceed. If the status is pending/failed it will also indicate to
 // proceed. Otherwise, the status should be completed and it will indicate not to proceed.
 // It will also return the id of the record.
