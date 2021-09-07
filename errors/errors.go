@@ -13,14 +13,36 @@ var CustomExtendedError *ExtendedError = &ExtendedError{}
 
 // ExtendedError is our custom error
 type ExtendedError struct {
-	InnerError error  `json:"innerError"`
-	UserMsg    string `json:"userMsg"`
-	original   error
+	InnerError     error  `json:"innerError"`
+	UserMsg        string `json:"userMsg"`
+	original       error
+	TruncateXLines int
 }
 
 // Error returns the string of the inner error
 func (e *ExtendedError) Error() string {
-	return fmt.Sprintf("%+v", e.InnerError)
+	s := fmt.Sprintf("%+v", e.InnerError)
+	if e.TruncateXLines == 0 {
+		return s
+	}
+
+	// TODO: implement differently? this is really just for local dev
+	// Truncate the last x lines
+	r := []rune(s)
+	idx, numNewLines := 0, 0
+
+	for i := len(s) - 1; i > 0 && numNewLines < e.TruncateXLines; i-- {
+		if r[i] == '\n' {
+			idx = i
+			numNewLines++
+		}
+	}
+
+	if numNewLines > 0 {
+		r = r[0:idx]
+	}
+
+	return string(r)
 }
 
 // IsError checks if the originating error is the specified target

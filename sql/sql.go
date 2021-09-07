@@ -2,18 +2,18 @@ package sql
 
 import (
 	"fmt"
-	"os"
 	"net/url"
+	"os"
 	"strings"
 
 	"database/sql"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/Skyrin/go-lib/errors"
-	"github.com/rs/zerolog/log"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/rs/zerolog/log"
 
 	// Including postgres library for SQL connections
 	_ "github.com/lib/pq"
@@ -33,14 +33,15 @@ type Connection struct {
 
 // ConnParam connection parameters used to initialize a connection
 type ConnParam struct {
-	Host        string
-	Port        string
-	User        string
-	Password    string
-	DBName      string
-	SSLMode     string
-	SearchPath  string
-	MigratePath string
+	Host           string
+	Port           string
+	User           string
+	Password       string
+	DBName         string
+	SSLMode        string
+	SearchPath     string
+	MigratePath    string
+	MigrationTable string
 }
 
 // GetConnParamFromENV initializes new connection parameters and populates from ENV variables
@@ -75,6 +76,44 @@ func GetConnParamFromENV() (cp *ConnParam, err error) {
 	return cp, nil
 }
 
+// GetConnectionStr returns a connection string
+func GetConnectionStr(cp *ConnParam) (connStr string, err error) {
+	var csb strings.Builder
+
+	if cp == nil {
+		cp, err = GetConnParamFromENV()
+		if err != nil {
+			return "", errors.Wrap(err, "GetConnectionStr.1", "Failed to get DB connection parameters")
+		}
+	}
+
+	_, _ = csb.WriteString("host=")
+	_, _ = csb.WriteString(cp.Host)
+	_, _ = csb.WriteString(" port=")
+	_, _ = csb.WriteString(cp.Port)
+	_, _ = csb.WriteString(" user=")
+	_, _ = csb.WriteString(cp.User)
+	_, _ = csb.WriteString(" password=")
+	_, _ = csb.WriteString(url.QueryEscape(cp.Password))
+	_, _ = csb.WriteString(" dbname=")
+	_, _ = csb.WriteString(cp.DBName)
+
+	_, _ = csb.WriteString(" ")
+	if cp.SSLMode != "" {
+		_, _ = csb.WriteString(cp.SSLMode)
+	} else {
+		_, _ = csb.WriteString("sslmode=require")
+	}
+
+	if cp.SearchPath != "" {
+		_, _ = csb.WriteString(" ")
+		_, _ = csb.WriteString(cp.SearchPath)
+
+	}
+
+	return csb.String(), nil
+}
+
 func getMigrateConnStr(cp *ConnParam) (connStr string, err error) {
 	var csb strings.Builder
 
@@ -97,7 +136,7 @@ func getMigrateConnStr(cp *ConnParam) (connStr string, err error) {
 	_, _ = csb.WriteString(cp.DBName)
 	_, _ = csb.WriteString("?")
 
-	if(cp.SSLMode != "") {
+	if cp.SSLMode != "" {
 		_, _ = csb.WriteString(cp.SSLMode)
 	} else {
 		_, _ = csb.WriteString("sslmode=require")
@@ -129,7 +168,7 @@ func Upgrade(cp *ConnParam) (err error) {
 		return errors.Wrap(err, "Upgrade.1", "Failed to get connection string")
 	}
 
-	m, err := migrate.New(fsb.String(),connStr)
+	m, err := migrate.New(fsb.String(), connStr)
 	if err != nil {
 		return errors.Wrap(err, "Upgrade.2", "Failed to initialize migration")
 	}
@@ -140,35 +179,6 @@ func Upgrade(cp *ConnParam) (err error) {
 			return nil
 		}
 		return errors.Wrap(err, "Upgrade.3", "Failed to upgrade")
-	}
-
-	return nil
-}
-
-// Downgrade tries to downgrade the database using migrations
-func Downgrade(cp *ConnParam) (err error) {
-	var fsb strings.Builder
-
-	//"db/migrations"
-	if cp.MigratePath != "" {
-		_, _ = fsb.WriteString("file://")
-		fsb.WriteString(cp.MigratePath)
-	} else {
-		fsb.WriteString("file://db/migrations")
-	}
-
-	connStr, err := getMigrateConnStr(cp)
-	if err != nil {
-		return errors.Wrap(err, "Downgrade.1", "Failed to get connection string")
-	}
-
-	m, err := migrate.New(fsb.String(),connStr)
-	if err != nil {
-		return errors.Wrap(err, "Downgrade.2", "Failed to initialize migration")
-	}
-
-	if err := m.Down(); err != nil {
-		return errors.Wrap(err, "Downgrade.3", "Failed to downgrade")
 	}
 
 	return nil
@@ -276,7 +286,7 @@ func (c *Connection) Query(query string, args ...interface{}) (rows *sql.Rows, e
 	if err != nil {
 		// TODO: redact potential sensitive information in args
 		return nil, errors.Wrap(err, fmt.Sprintf("Connection.Query.1 - query: %s\n args: %v",
-			 query, args), "")
+			query, args), "")
 	}
 
 	return rows, nil
@@ -291,7 +301,7 @@ func (c *Connection) Exec(query string, args ...interface{}) (res sql.Result, er
 	if err != nil {
 		// TODO: redact potential sensitive information in args
 		return nil, errors.Wrap(err, fmt.Sprintf("Connection.Exec.1 - query: %s\n args: %v",
-			 query, args), "")
+			query, args), "")
 	}
 
 	return res, nil
@@ -336,17 +346,17 @@ func (c *Connection) ToSQLAndQuery(sb sq.SelectBuilder) (rows *sql.Rows, err err
 	stmt, bindList, err := sb.ToSql()
 	if err != nil {
 		// TODO: redact sensitive information
-		return nil, errors.Wrap(err, 
+		return nil, errors.Wrap(err,
 			fmt.Sprintf("Connection.ToSQLAndQuery.1 - failed to generate select query - stmt: %s | bind: %+v",
-			stmt, bindList), "")
+				stmt, bindList), "")
 	}
 
 	rows, err = c.DB.Query(stmt, bindList...)
 	if err != nil {
 		// TODO: redact sensitive information
-		return nil, errors.Wrap(err, 
+		return nil, errors.Wrap(err,
 			fmt.Sprintf("Connection.ToSQLAndQuery.2 - failed to generate select query - stmt: %s | bind: %+v",
-			stmt, bindList), "")
+				stmt, bindList), "")
 	}
 
 	return rows, nil
@@ -358,9 +368,9 @@ func (c *Connection) ToSQLAndQueryRow(sb sq.SelectBuilder) (row *sql.Row, err er
 	stmt, bindList, err := sb.ToSql()
 	if err != nil {
 		// TODO: redact sensitive information
-		return nil, errors.Wrap(err, 
+		return nil, errors.Wrap(err,
 			fmt.Sprintf("Connection.ToSQLAndQueryRow.1 - failed to generate select query - stmt: %s | bind: %+v",
-			stmt, bindList), "")
+				stmt, bindList), "")
 	}
 
 	return c.DB.QueryRow(stmt, bindList...), nil
@@ -371,13 +381,15 @@ func (c *Connection) ExecInsert(ib sq.InsertBuilder) (err error) {
 	stmt, bindList, err := ib.ToSql()
 	if err != nil {
 		// TODO: redact sensitive information
-		return errors.Wrap(err, 
+		return errors.Wrap(err,
 			fmt.Sprintf("Connection.ExecInsert.1 - failed to generate insert query - stmt: %s | bind: %+v",
-			stmt, bindList), "")
+				stmt, bindList), "")
 	}
 
 	if _, err := c.Exec(stmt, bindList...); err != nil {
-		return errors.Wrap(err, "Connection.ExecInsert.2", "")
+		return errors.Wrap(err,
+			fmt.Sprintf("Connection.ExecInsert.2 - stmt: %s | bind: %+v",
+				stmt, bindList), "")
 	}
 
 	return nil
@@ -388,9 +400,9 @@ func (c *Connection) ExecUpdate(ub sq.UpdateBuilder) (err error) {
 	stmt, bindList, err := ub.ToSql()
 	if err != nil {
 		// TODO: redact sensitive information
-		return errors.Wrap(err, 
+		return errors.Wrap(err,
 			fmt.Sprintf("Connection.ExecUpdate.1 - failed to generate update query - stmt: %s | bind: %+v",
-			stmt, bindList), "")
+				stmt, bindList), "")
 	}
 
 	if _, err := c.Exec(stmt, bindList...); err != nil {
@@ -405,9 +417,9 @@ func (c *Connection) ExecDelete(delB sq.DeleteBuilder) (err error) {
 	stmt, bindList, err := delB.ToSql()
 	if err != nil {
 		// TODO: redact sensitive information
-		return errors.Wrap(err, 
+		return errors.Wrap(err,
 			fmt.Sprintf("Connection.ExecDelete.1 - failed to generate delete query - stmt: %s | bind: %+v",
-			stmt, bindList), "")
+				stmt, bindList), "")
 	}
 
 	if _, err := c.Exec(stmt, bindList...); err != nil {
@@ -422,13 +434,15 @@ func (c *Connection) ExecInsertReturningID(ib sq.InsertBuilder) (id int, err err
 	stmt, bindList, err := ib.ToSql()
 	if err != nil {
 		// TODO: redact sensitive information
-		return 0, errors.Wrap(err, 
-			fmt.Sprintf("failed to generate insert query - stmt: %s | bind: %+v",
-			stmt, bindList), "")
+		return 0, errors.Wrap(err,
+			fmt.Sprintf("Connection.ExecInsertReturningID - stmt: %s | bind: %+v",
+				stmt, bindList), "")
 	}
 
 	if err := c.QueryRow(stmt, bindList...).Scan(&id); err != nil {
-		return 0, errors.Wrap(err, "Connection.ExecInsert.2", "")
+		return 0, errors.Wrap(err,
+			fmt.Sprintf("Connection.ExecInsertReturningID.2 | stmt: %s | bind: %+v",
+				stmt, bindList), "")
 	}
 
 	return id, nil

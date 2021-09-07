@@ -12,6 +12,8 @@ const (
 	PQErr23505UniqueViolation = "23505"
 	// PQErr58030IOError Postgres code for i/o error ("could not write to temporary file")
 	PQErr58030IOError = "58030"
+	// PQErr42P01 pq: relation "<string>" does not exist
+	PQErr42P01 = "42P01"
 )
 
 // IsPQError checks if the passed error is the specified Postgres error code
