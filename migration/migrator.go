@@ -39,7 +39,7 @@ var migrations embed.FS
 const (
 	MIGRATION_TABLE = "skyrin_migration"
 	MIGRATION_PATH  = "db/migrations"
-	MIGRATION_CODE  = "arc-migrations"
+	MIGRATION_CODE  = "migration"
 )
 
 type Migrator struct {
