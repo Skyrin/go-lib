@@ -10,9 +10,6 @@ import (
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/Skyrin/go-lib/errors"
-	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/rs/zerolog/log"
 
 	// Including postgres library for SQL connections
@@ -149,39 +146,6 @@ func getMigrateConnStr(cp *ConnParam) (connStr string, err error) {
 	}
 
 	return csb.String(), nil
-}
-
-// Upgrade tries to upgrade the database using migrations
-func Upgrade(cp *ConnParam) (err error) {
-	var fsb strings.Builder
-
-	//"db/migrations"
-	if cp.MigratePath != "" {
-		_, _ = fsb.WriteString("file://")
-		fsb.WriteString(cp.MigratePath)
-	} else {
-		fsb.WriteString("file://db/migrations")
-	}
-
-	connStr, err := getMigrateConnStr(cp)
-	if err != nil {
-		return errors.Wrap(err, "Upgrade.1", "Failed to get connection string")
-	}
-
-	m, err := migrate.New(fsb.String(), connStr)
-	if err != nil {
-		return errors.Wrap(err, "Upgrade.2", "Failed to initialize migration")
-	}
-
-	if err := m.Up(); err != nil {
-		if err == migrate.ErrNoChange {
-			// If no change, then treate as not an error
-			return nil
-		}
-		return errors.Wrap(err, "Upgrade.3", "Failed to upgrade")
-	}
-
-	return nil
 }
 
 // NewPostgresConn initializes a new Postgres connection
