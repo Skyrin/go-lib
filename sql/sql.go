@@ -42,7 +42,7 @@ type ConnParam struct {
 }
 
 // GetConnParamFromENV initializes new connection parameters and populates from ENV variables
-func GetConnParamFromENV() (cp *ConnParam, err error) {
+func GetConnParamFromENV() (cp *ConnParam) {
 	cp = &ConnParam{}
 
 	if os.Getenv("DBHOST") != "" {
@@ -70,18 +70,15 @@ func GetConnParamFromENV() (cp *ConnParam, err error) {
 		cp.MigratePath = os.Getenv("DBMIGRATEPATH")
 	}
 
-	return cp, nil
+	return cp
 }
 
 // GetConnectionStr returns a connection string
-func GetConnectionStr(cp *ConnParam) (connStr string, err error) {
+func GetConnectionStr(cp *ConnParam) (connStr string) {
 	var csb strings.Builder
 
 	if cp == nil {
-		cp, err = GetConnParamFromENV()
-		if err != nil {
-			return "", errors.Wrap(err, "GetConnectionStr.1", "Failed to get DB connection parameters")
-		}
+		cp = GetConnParamFromENV()
 	}
 
 	_, _ = csb.WriteString("host=")
@@ -91,7 +88,7 @@ func GetConnectionStr(cp *ConnParam) (connStr string, err error) {
 	_, _ = csb.WriteString(" user=")
 	_, _ = csb.WriteString(cp.User)
 	_, _ = csb.WriteString(" password=")
-	_, _ = csb.WriteString(url.QueryEscape(cp.Password))
+	_, _ = csb.WriteString(cp.Password)
 	_, _ = csb.WriteString(" dbname=")
 	_, _ = csb.WriteString(cp.DBName)
 
@@ -108,17 +105,14 @@ func GetConnectionStr(cp *ConnParam) (connStr string, err error) {
 
 	}
 
-	return csb.String(), nil
+	return csb.String()
 }
 
 func getMigrateConnStr(cp *ConnParam) (connStr string, err error) {
 	var csb strings.Builder
 
 	if cp == nil {
-		cp, err = GetConnParamFromENV()
-		if err != nil {
-			return "", errors.Wrap(err, "getMigrateConnStr.1", "Failed to get DB connection parameters")
-		}
+		cp = GetConnParamFromENV()
 	}
 
 	_, _ = csb.WriteString("postgres://")
@@ -152,16 +146,11 @@ func getMigrateConnStr(cp *ConnParam) (connStr string, err error) {
 // FIXME: use a pool?
 func NewPostgresConn(cp *ConnParam) (conn *Connection, err error) {
 	if cp == nil {
-		cp, err = GetConnParamFromENV()
-		if err != nil {
-			return nil, errors.Wrap(err, "NewPostgresConn.1", "Failed to initialize DB")
-		}
+		cp = GetConnParamFromENV()
 	}
 
 	//TODO: handle errors better
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s %s %s",
-		cp.Host, cp.Port, cp.User, cp.Password, cp.DBName, cp.SSLMode, cp.SearchPath)
-	sqlConn, err := sql.Open("postgres", connStr)
+	sqlConn, err := sql.Open("postgres", GetConnectionStr(cp))
 	if err != nil {
 		return nil, errors.Wrap(err, "NewPostgresConn.2", "Failed to connect to DB")
 	}

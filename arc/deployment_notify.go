@@ -25,12 +25,8 @@ type DeploymentNotify struct {
 // NewDeploymentNotify create a new deployment notify instance
 func NewDeploymentNotify() (dn *DeploymentNotify, err error) {
 	dn = &DeploymentNotify{Failed: make(chan error, 2)}
-	dsn, err := sql.GetConnectionStr(nil)
-	if err != nil {
-		return nil, errors.Wrap(err, "NewDeploymentNotify.1", "")
-	}
 
-	listener := pq.NewListener(dsn, 10*time.Second, time.Minute, dn.Log)
+	listener := pq.NewListener(sql.GetConnectionStr(nil), 10*time.Second, time.Minute, dn.Log)
 	if err := listener.Listen(CHANNEL_ARC_DEPLOYMENT_NOTIFY); err != nil {
 		listener.Close()
 		return nil, errors.Wrap(err, "NewDeploymentNotify.2", "")
