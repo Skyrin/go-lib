@@ -11,4 +11,6 @@ const (
 	ErrInvalidGrant            = "ARC.08: invalid_grant"
 	ErrArcimedesUserExists     = "ARC.09: Arcimedes user already exists"
 	ErrArcimedesUserNotExists  = "ARC.0A: Arcimedes user does not exist"
+	ErrCoreUserExists          = "ARC.0B: Core user already exists"
+	ErrCoreUserNotExists       = "ARC.0C: Core user does not exist"
 )

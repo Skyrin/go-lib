@@ -42,6 +42,7 @@ func (c *Client) RegisterCoreUser(ui *ArcUser, retry bool) (au *ArcUser, err err
 	if err != nil {
 		return nil, gle.Wrap(err, "RegisterCoreUser.1", "")
 	}
+
 	res, err := c.sendSingleRequestItem(
 		c.deployment.getAPICoreServiceURL(),
 		ri,
@@ -58,14 +59,14 @@ func (c *Client) RegisterCoreUser(ui *ArcUser, retry bool) (au *ArcUser, err err
 			// assume the user needs to be recreated and will just update the
 			// existing users information.
 			// First now fetch that user
-			au, err = c.ArcimedesUserGetByUsername(ui.Username)
+			au, err = c.CoreUserGetByUsername(ui.Username)
 			if err != nil {
 				return nil, gle.Wrap(err, "RegisterCoreUser.2", "")
 			}
 
 			// Try to upsert with the id now
 			ui.ArcUserID = au.ID
-			au, err = c.RegisterArcimedesUser(ui, false)
+			au, err = c.RegisterCoreUser(ui, false)
 			if err != nil {
 				return nil, gle.Wrap(err, "RegisterCoreUser.3", "")
 			}
@@ -115,7 +116,7 @@ func (c *Client) CoreUserGetByUsername(username string) (au *ArcUser, err error)
 	}
 
 	if len(auList) != 1 {
-		return nil, fmt.Errorf(arcerrors.ErrArcimedesUserNotExists)
+		return nil, fmt.Errorf(arcerrors.ErrCoreUserNotExists)
 	}
 
 	return auList[0], nil
