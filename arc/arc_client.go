@@ -209,7 +209,7 @@ func (c *Client) Flush() (resList *ResponseList, err error) {
 // Send performs the actual publish requet to the arc notification service
 func (c *Client) Send(reqItemList []*RequestItem) (resList *ResponseList, err error) {
 	if len(c.RequestList) == 0 {
-		return nil, errors.Wrap(fmt.Errorf("Request List is empty"), "Send.1", "")
+		return nil, errors.Wrap(fmt.Errorf("request list is empty"), "Send.1", "")
 	}
 
 	ca, err := c.getClientAuth()
