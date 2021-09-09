@@ -8,31 +8,12 @@ import (
 	gle "github.com/Skyrin/go-lib/errors"
 )
 
-// CartCustomerInput
-type CartCustomer struct {
-	ID         int        `json:"id"`
-	ArcUserID  int        `json:"-"`
-	Username   string     `json:"username"`
-	Email      string     `json:"email"`
-	Password   string     `json:"-"`
-	FirstName  string     `json:"-"`
-	MiddleName string     `json:"-"`
-	LastName   string     `json:"-"`
-	Person     CorePerson `json:"person"`
-}
-
-type CorePerson struct {
-	FirstName  string `json:"firstName"`
-	MiddleName string `json:"middleName"`
-	LastName   string `json:"lastName"`
-}
-
 // RegisterCartCustomer attempts to create the cart customer in arc. If the
 // customer already exists in arc, will fetch the arc user id (by the passed
 // username) and then make the call to update it. This should only be called
 // when registering a new cart customer, as it will reset the password
 func (c *Client) RegisterCartCustomer(storeCode string,
-	ci *CartCustomer, retry bool) (cust *CartCustomer, err error) {
+	ci *ArcUser, retry bool) (cust *ArcUser, err error) {
 
 	var params []interface{}
 	if ci.ArcUserID > 0 {
@@ -91,7 +72,7 @@ func (c *Client) RegisterCartCustomer(storeCode string,
 			return nil, gle.Wrap(err, "RegisterCartCustomer.4", "")
 		}
 	} else {
-		cust = &CartCustomer{}
+		cust = &ArcUser{}
 		if err := json.Unmarshal(res.Data, cust); err != nil {
 			return nil, gle.Wrap(err, "CartUpsertCustomer.5", "")
 		}
@@ -101,7 +82,7 @@ func (c *Client) RegisterCartCustomer(storeCode string,
 }
 
 // CartGetCustomerByUsername fetches the customer by username from the specified store
-func (c *Client) CartGetCustomerByUsername(storeCode, username string) (cust *CartCustomer, err error) {
+func (c *Client) CartGetCustomerByUsername(storeCode, username string) (cust *ArcUser, err error) {
 	var params []interface{}
 
 	rio := RequestItemOption{}
@@ -127,7 +108,7 @@ func (c *Client) CartGetCustomerByUsername(storeCode, username string) (cust *Ca
 		return nil, gle.Wrap(err, "CartGetCustomer.2", "")
 	}
 
-	custList := []*CartCustomer{}
+	custList := []*ArcUser{}
 	if err := json.Unmarshal(res.Data, &custList); err != nil {
 		return nil, gle.Wrap(err, "CartGetCustomer.3", "")
 	}

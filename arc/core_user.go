@@ -8,11 +8,11 @@ import (
 	gle "github.com/Skyrin/go-lib/errors"
 )
 
-// RegisterArcimedesUser attempts to create the arcimedes user in arc. If the
+// RegisterCoreUser attempts to create the core user in arc. If the
 // user already exists in arc, will fetch the arc user id (by the passed
 // username) and then make the call to update it. This should only be called
-// when registering a new arcimedes user, as it will reset the password
-func (c *Client) RegisterArcimedesUser(ui *ArcUser, retry bool) (au *ArcUser, err error) {
+// when registering a new core user, as it will reset the password
+func (c *Client) RegisterCoreUser(ui *ArcUser, retry bool) (au *ArcUser, err error) {
 
 	var params []interface{}
 	if ui.ArcUserID > 0 {
@@ -29,9 +29,10 @@ func (c *Client) RegisterArcimedesUser(ui *ArcUser, retry bool) (au *ArcUser, er
 	rio.Value["firstName"] = ui.FirstName
 	rio.Value["middleName"] = ui.MiddleName
 	rio.Value["lastName"] = ui.LastName
+	rio.Value["typeCode"] = ui.Type
 
 	ri := &RequestItem{
-		Service: "arcimedes",
+		Service: "core",
 		Action:  "User.update",
 		Params:  params,
 		Options: rio,
@@ -39,12 +40,13 @@ func (c *Client) RegisterArcimedesUser(ui *ArcUser, retry bool) (au *ArcUser, er
 
 	ca, err := c.getClientAuth()
 	if err != nil {
-		return nil, gle.Wrap(err, "ArcimedesUpsertUser.1", "")
+		return nil, gle.Wrap(err, "RegisterCoreUser.1", "")
 	}
 	res, err := c.sendSingleRequestItem(
-		c.deployment.getManageArcimedesServiceURL(),
+		c.deployment.getAPICoreServiceURL(),
 		ri,
 		ca)
+
 	if err != nil {
 		if res != nil && res.ErrorCode == E01FAAE_UserAlreadyExists && retry {
 			// User already exists in the system, The app is still requesting
@@ -58,30 +60,30 @@ func (c *Client) RegisterArcimedesUser(ui *ArcUser, retry bool) (au *ArcUser, er
 			// First now fetch that user
 			au, err = c.ArcimedesUserGetByUsername(ui.Username)
 			if err != nil {
-				return nil, gle.Wrap(err, "ArcimedesUpsertUser.2", "")
+				return nil, gle.Wrap(err, "RegisterCoreUser.2", "")
 			}
 
 			// Try to upsert with the id now
 			ui.ArcUserID = au.ID
 			au, err = c.RegisterArcimedesUser(ui, false)
 			if err != nil {
-				return nil, gle.Wrap(err, "ArcimedesUpsertUser.3", "")
+				return nil, gle.Wrap(err, "RegisterCoreUser.3", "")
 			}
 		} else {
-			return nil, gle.Wrap(err, "ArcimedesUpsertUser.4", "")
+			return nil, gle.Wrap(err, "RegisterCoreUser.4", "")
 		}
 	} else {
 		au = &ArcUser{}
 		if err := json.Unmarshal(res.Data, au); err != nil {
-			return nil, gle.Wrap(err, "ArcimedesUpsertUser.5", "")
+			return nil, gle.Wrap(err, "RegisterCoreUser.5", "")
 		}
 	}
 
 	return au, nil
 }
 
-// ArcimedesUserGetByUsername fetches the arcimedes user by username
-func (c *Client) ArcimedesUserGetByUsername(username string) (au *ArcUser, err error) {
+// CoreUserGetByUsername fetches the core user by username
+func (c *Client) CoreUserGetByUsername(username string) (au *ArcUser, err error) {
 	var params []interface{}
 
 	rio := RequestItemOption{}
@@ -89,7 +91,7 @@ func (c *Client) ArcimedesUserGetByUsername(username string) (au *ArcUser, err e
 	rio.Filter["username"] = username
 
 	ri := &RequestItem{
-		Service: "arcimedes",
+		Service: "core",
 		Action:  "User.get",
 		Params:  params,
 		Options: rio,
@@ -97,19 +99,19 @@ func (c *Client) ArcimedesUserGetByUsername(username string) (au *ArcUser, err e
 
 	ca, err := c.getClientAuth()
 	if err != nil {
-		return nil, gle.Wrap(err, "ArcimedesUserGetByUsername.1", "")
+		return nil, gle.Wrap(err, "CoreUserGetByUsername.1", "")
 	}
 	res, err := c.sendSingleRequestItem(
-		c.deployment.getManageArcimedesServiceURL(),
+		c.deployment.getAPICoreServiceURL(),
 		ri,
 		ca)
 	if err != nil {
-		return nil, gle.Wrap(err, "ArcimedesUserGetByUsername.2", "")
+		return nil, gle.Wrap(err, "CoreUserGetByUsername.2", "")
 	}
 
 	auList := []*ArcUser{}
 	if err := json.Unmarshal(res.Data, &auList); err != nil {
-		return nil, gle.Wrap(err, "ArcimedesUserGetByUsername.3", "")
+		return nil, gle.Wrap(err, "CoreUserGetByUsername.3", "")
 	}
 
 	if len(auList) != 1 {
