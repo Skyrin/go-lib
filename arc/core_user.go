@@ -44,7 +44,7 @@ func (c *Client) RegisterCoreUser(ui *ArcUser, retry bool) (au *ArcUser, err err
 	}
 
 	res, err := c.sendSingleRequestItem(
-		c.deployment.getAPICoreServiceURL(),
+		c.deployment.getManageCoreServiceURL(),
 		ri,
 		ca)
 
