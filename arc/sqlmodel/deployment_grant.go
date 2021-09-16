@@ -7,6 +7,7 @@ import (
 
 	arcerrors "github.com/Skyrin/go-lib/arc/errors"
 	"github.com/Skyrin/go-lib/arc/model"
+	"github.com/Skyrin/go-lib/e"
 	gle "github.com/Skyrin/go-lib/errors"
 	"github.com/Skyrin/go-lib/sql"
 )
@@ -203,4 +204,16 @@ func DeploymentGrantGetByToken(db *sql.Connection, token string) (dg *model.Depl
 	}
 
 	return dgList[0], nil
+}
+
+// DeploymentGrantPurgeByToken purges a record by the token
+func DeploymentGrantPurgeByToken(db *sql.Connection, token string) (err error) {
+	delB := db.Delete(DeploymentGrantTableName).
+		Where("arc_deployment_grant_token=?", token)
+	_, err = delB.Exec()
+	if err != nil {
+		return e.New(e.Code0400, "01", e.MsgUnknownInternalServerError)
+	}
+
+	return nil
 }

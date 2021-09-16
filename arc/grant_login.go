@@ -127,3 +127,32 @@ func (c *Client) GrantUserinfo(accessToken string) (gui *GrantUserinfo, err erro
 
 	return gui, nil
 }
+
+// GrantRevoke removes the access token from the arc_deployment_grant table and makes a call
+// to the associated arc deployment to revoke the grant (access token)
+func (c *Client) GrantRevoke(accessToken string) (err error) {
+    // Purge the grant from the table
+    if err := sqlmodel.DeploymentGrantPurgeByToken(c.deployment.DB, accessToken); err != nil {
+        return gle.Wrap(err, "GrantRevoke.1", "")
+    }
+
+    // Now revoke the grant in arc
+    params := []interface{}{}
+
+    ri := &RequestItem{
+        Service: "core",
+        Action:  "oauth2.Grant.revoke",
+        Params:  params,
+    }
+
+    ca := &clientAuth{accessToken: accessToken}
+    _, err = c.sendSingleRequestItem(
+        c.deployment.getManageCoreServiceURL(),
+        ri,
+        ca)
+    if err != nil {
+        return gle.Wrap(err, "GrantRevoke.2", "")
+    }
+
+    return nil
+}
