@@ -3,7 +3,7 @@ package arc
 import (
 	"time"
 
-	"github.com/Skyrin/go-lib/errors"
+	"github.com/Skyrin/go-lib/e"
 	"github.com/Skyrin/go-lib/sql"
 	"github.com/lib/pq"
 	"github.com/rs/zerolog/log"
@@ -29,14 +29,14 @@ func NewDeploymentNotify() (dn *DeploymentNotify, err error) {
 	listener := pq.NewListener(sql.GetConnectionStr(nil), 10*time.Second, time.Minute, dn.Log)
 	if err := listener.Listen(CHANNEL_ARC_DEPLOYMENT_NOTIFY); err != nil {
 		listener.Close()
-		return nil, errors.Wrap(err, "NewDeploymentNotify.2", "")
+		return nil, e.Wrap(err, e.Code040K, "01")
 	}
 
 	dn.Listener = listener
 
 	go func() {
 		if err := dn.Listen(); err != nil {
-			log.Warn().Err(err).Msg("NewDeploymentNotify.3")
+			log.Warn().Err(err).Msgf("%s%s", e.Code040K, "02")
 		}
 	}()
 
@@ -46,7 +46,7 @@ func NewDeploymentNotify() (dn *DeploymentNotify, err error) {
 // Log handles logging errors
 func (dn *DeploymentNotify) Log(ev pq.ListenerEventType, err error) {
 	if err != nil {
-		log.Warn().Err(err).Msg("DeploymentNotify.1")
+		log.Warn().Err(err).Msgf("%s%s", e.Code040L, "01")
 	}
 
 	if ev == pq.ListenerEventConnectionAttemptFailed {
@@ -64,7 +64,7 @@ func (dn *DeploymentNotify) Listen() (err error) {
 
 			dn.Notify(e.Extra)
 		case err := <-dn.Failed:
-			return errors.Wrap(err, "DeploymentNotify.Listen.1", "")
+			return e.Wrap(err, e.Code040M, "01")
 		case <-time.After(time.Minute):
 			go dn.Listener.Ping()
 		}

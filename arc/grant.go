@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	arcerrors "github.com/Skyrin/go-lib/arc/errors"
 	"github.com/Skyrin/go-lib/arc/model"
 	"github.com/Skyrin/go-lib/arc/sqlmodel"
-	"github.com/Skyrin/go-lib/errors"
-	gle "github.com/Skyrin/go-lib/errors"
+	"github.com/Skyrin/go-lib/e"
 	"github.com/Skyrin/go-lib/sql"
 )
 
@@ -49,17 +47,18 @@ func grantClientCredentials(c *Client, id, secret string) (g *Grant, err error) 
 
 	res, err := c.sendSingleRequestItem(c.deployment.getManageCoreServiceURL(), ri, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "getClientCredentialsGrant.1", "")
+		return nil, e.Wrap(err, e.Code040N, "01")
 	}
 
 	if !res.Success {
-		return nil, errors.Wrap(fmt.Errorf("[%s]%s", res.ErrorCode,
-			res.Message), "getClientCredentialsGrant.2", "")
+
+		return nil, e.Wrap(err, e.Code040N, "02",
+			fmt.Sprintf("[%s]%s", res.ErrorCode, res.Message))
 	}
 
 	g = &Grant{}
 	if err := json.Unmarshal(res.Data, g); err != nil {
-		return nil, errors.Wrap(err, "getClientCredentialsGrant.3", "")
+		return nil, e.Wrap(err, e.Code040N, "03")
 	}
 
 	return g, nil
@@ -87,14 +86,14 @@ func (g *Grant) refresh(c *Client, clientID, secret string,
 
 	res, err := c.sendSingleRequestItem(c.deployment.getManageCoreServiceURL(), ri, nil)
 	if err != nil {
-		return false, errors.Wrap(err, "Grant.refresh.1", "")
+		return false, e.Wrap(err, e.Code040O, "01")
 	}
 
 	var tmpGrant *Grant
 	if res.Data != nil {
 		tmpGrant = &Grant{}
 		if err := json.Unmarshal(res.Data, tmpGrant); err != nil {
-			return false, errors.Wrap(err, "Grant.refresh.3", "")
+			return false, e.Wrap(err, e.Code040O, "02")
 		}
 	}
 
@@ -113,17 +112,17 @@ func (g *Grant) refresh(c *Client, clientID, secret string,
 func GrantRefresh(db *sql.Connection, c *Client, credentialID int, token string) (g *Grant, err error) {
 	credential, err := sqlmodel.CredentialGetByID(c.deployment.DB, credentialID)
 	if err != nil {
-		return nil, gle.Wrap(err, "GrantRefresh.1", "")
+		return nil, e.Wrap(err, e.Code040P, "01")
 	}
 
 	dg, err := sqlmodel.DeploymentGrantGetByToken(db, token)
 	if err != nil {
-		return nil, fmt.Errorf(arcerrors.Unauthorized)
+		return nil, e.New(e.Code040P, "01", e.MsgUnauthorized)
 	}
 
 	g = SQLDeploymentGrantToGrant(dg)
 	if _, err := g.refresh(c, credential.ClientID, credential.ClientSecret, true); err != nil {
-		return nil, errors.Wrap(err, "Grant.Refresh.2", "")
+		return nil, e.Wrap(err, e.Code040P, "02")
 	}
 
 	// Update the database record
@@ -134,7 +133,7 @@ func GrantRefresh(db *sql.Connection, c *Client, credentialID int, token string)
 			RefreshToken:       &g.RefreshToken,
 			RefreshTokenExpiry: &g.RefreshTokenExpiry,
 		}); err != nil {
-		return nil, errors.Wrap(err, "Grant.Refresh.3", "")
+		return nil, e.Wrap(err, e.Code040P, "03")
 	}
 
 	return g, nil

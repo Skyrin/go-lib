@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Skyrin/go-lib/errors"
+	"github.com/Skyrin/go-lib/e"
 	"github.com/Skyrin/go-lib/migration/model"
 	"github.com/Skyrin/go-lib/sql"
 )
@@ -57,7 +57,9 @@ func MigrationInsert(db *sql.Connection, ip *MigrationInsertParam) (id int, err 
 
 	id, err = db.ExecInsertReturningID(ib)
 	if err != nil {
-		return 0, errors.Wrap(err, "MigrationInsert.1", "")
+		return 0, e.Wrap(err, e.Code0101, "01",
+			fmt.Sprintf("params: %s, %v, %s, SQL redacted, %s",
+				ip.Code, ip.Version, ip.Status, ip.Err))
 	}
 
 	return id, nil
@@ -91,7 +93,9 @@ func MigrationUpdate(db *sql.Connection, id int, up *MigrationUpdateParam) (err 
 
 	err = db.ExecUpdate(ub)
 	if err != nil {
-		return errors.Wrap(err, "MigrationUpdate.1", "")
+		return e.Wrap(err, e.Code0102, "01",
+			fmt.Sprintf("params: %d, %v, %v, SQL redacted, %v",
+				id, up.Version, up.Status, up.Err))
 	}
 
 	return nil
@@ -130,14 +134,14 @@ func MigrationGet(db *sql.Connection,
 
 	stmt, bindList, err := sb.ToSql()
 	if err != nil {
-		return nil, 0, errors.Wrap(err, "MigrationGet.1", "")
+		return nil, 0, e.Wrap(err, e.Code0103, "01")
 	}
 
 	if p.FlagCount {
 		row := db.QueryRow(strings.Replace(stmt, "{fields}", "count(*)", 1), bindList...)
 		if err := row.Scan(&count); err != nil {
-			return nil, 0, errors.Wrap(err, fmt.Sprintf("MigrationGet.2 | stmt: %s, bindList: %+v",
-				stmt, bindList), "")
+			return nil, 0, e.Wrap(err, e.Code0103, "02",
+				fmt.Sprintf("stmt: %s | bindList: %v", stmt, bindList))
 		}
 	}
 
@@ -156,7 +160,8 @@ func MigrationGet(db *sql.Connection,
 
 	rows, err := db.Query(stmt, bindList...)
 	if err != nil {
-		return nil, 0, errors.Wrap(err, "MigrationGet.3", "")
+		return nil, 0, e.Wrap(err, e.Code0103, "03",
+			fmt.Sprintf("bindList: %v", bindList))
 	}
 	defer rows.Close()
 
@@ -165,7 +170,8 @@ func MigrationGet(db *sql.Connection,
 		if err := rows.Scan(&m.ID, &m.Code, &m.Version,
 			&m.Status, &m.SQL, &m.Err,
 			&m.CreatedOn, &m.UpdatedOn); err != nil {
-			return nil, 0, errors.Wrap(err, "MigrationGet.4", "")
+			return nil, 0, e.Wrap(err, e.Code0103, "04",
+				fmt.Sprintf("stmt: %s | bindList: %v", stmt, bindList))
 		}
 
 		mList = append(mList, m)
@@ -185,11 +191,11 @@ func MigrationGetByCodeAndVersion(db *sql.Connection, code string,
 	})
 
 	if err != nil {
-		return nil, errors.Wrap(err, "MigrationGetByCodeAndVersion.1", "")
+		return nil, e.Wrap(err, e.Code0104, "01")
 	}
 
 	if len(mList) != 1 {
-		return nil, fmt.Errorf(model.ErrMigrationCodeVersionDNE)
+		return nil, e.New(e.Code0104, "02", e.MsgMigrationCodeVersionDNE)
 	}
 
 	return mList[0], nil
@@ -204,14 +210,14 @@ func MigrationGetLatest(db *sql.Connection, code string) (m *model.Migration, er
 	})
 	if err != nil {
 		// Check for table does not exist error
-		if errors.IsPQError(err, errors.PQErr42P01) {
-			return nil, fmt.Errorf(model.ErrMigrationNotInstalled)
+		if e.IsPQError(err, e.PQErr42P01) {
+			return nil, e.New(e.Code0105, "01", e.MsgMigrationNotInstalled)
 		}
-		return nil, errors.Wrap(err, "MigrationGetLatest.1", "")
+		return nil, e.Wrap(err, e.Code0105, "02")
 	}
 
 	if len(mList) != 1 {
-		return nil, fmt.Errorf(model.ErrMigrationNone)
+		return nil, e.New(e.Code0105, "03", e.MsgMigrationNone)
 	}
 
 	return mList[0], nil

@@ -4,8 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	arcerrors "github.com/Skyrin/go-lib/arc/errors"
-	gle "github.com/Skyrin/go-lib/errors"
+	"github.com/Skyrin/go-lib/e"
 )
 
 // RegisterArcimedesUser attempts to create the arcimedes user in arc. If the
@@ -39,7 +38,7 @@ func (c *Client) RegisterArcimedesUser(ui *ArcUser, retry bool) (au *ArcUser, er
 
 	ca, err := c.getClientAuth()
 	if err != nil {
-		return nil, gle.Wrap(err, "ArcimedesUpsertUser.1", "")
+		return nil, e.Wrap(err, e.Code040C, "01")
 	}
 	res, err := c.sendSingleRequestItem(
 		c.deployment.getManageArcimedesServiceURL(),
@@ -58,22 +57,22 @@ func (c *Client) RegisterArcimedesUser(ui *ArcUser, retry bool) (au *ArcUser, er
 			// First now fetch that user
 			au, err = c.ArcimedesUserGetByUsername(ui.Username)
 			if err != nil {
-				return nil, gle.Wrap(err, "ArcimedesUpsertUser.2", "")
+				return nil, e.Wrap(err, e.Code040C, "02")
 			}
 
 			// Try to upsert with the id now
 			ui.ArcUserID = au.ID
 			au, err = c.RegisterArcimedesUser(ui, false)
 			if err != nil {
-				return nil, gle.Wrap(err, "ArcimedesUpsertUser.3", "")
+				return nil, e.Wrap(err, e.Code040C, "03")
 			}
 		} else {
-			return nil, gle.Wrap(err, "ArcimedesUpsertUser.4", "")
+			return nil, e.Wrap(err, e.Code040C, "04")
 		}
 	} else {
 		au = &ArcUser{}
 		if err := json.Unmarshal(res.Data, au); err != nil {
-			return nil, gle.Wrap(err, "ArcimedesUpsertUser.5", "")
+			return nil, e.Wrap(err, e.Code040C, "05")
 		}
 	}
 
@@ -97,23 +96,23 @@ func (c *Client) ArcimedesUserGetByUsername(username string) (au *ArcUser, err e
 
 	ca, err := c.getClientAuth()
 	if err != nil {
-		return nil, gle.Wrap(err, "ArcimedesUserGetByUsername.1", "")
+		return nil, e.Wrap(err, e.Code040D, "01")
 	}
 	res, err := c.sendSingleRequestItem(
 		c.deployment.getManageArcimedesServiceURL(),
 		ri,
 		ca)
 	if err != nil {
-		return nil, gle.Wrap(err, "ArcimedesUserGetByUsername.2", "")
+		return nil, e.Wrap(err, e.Code040D, "02")
 	}
 
 	auList := []*ArcUser{}
 	if err := json.Unmarshal(res.Data, &auList); err != nil {
-		return nil, gle.Wrap(err, "ArcimedesUserGetByUsername.3", "")
+		return nil, e.Wrap(err, e.Code040D, "03")
 	}
 
 	if len(auList) != 1 {
-		return nil, fmt.Errorf(arcerrors.ErrArcimedesUserNotExists)
+		return nil, fmt.Errorf(e.MsgArcimedesUserNotExists)
 	}
 
 	return auList[0], nil

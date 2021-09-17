@@ -2,12 +2,10 @@ package migration
 
 import (
 	"embed"
-	"fmt"
 	"strconv"
 	"strings"
 
-	"github.com/Skyrin/go-lib/errors"
-	"github.com/Skyrin/go-lib/migration/model"
+	"github.com/Skyrin/go-lib/e"
 )
 
 type File struct {
@@ -40,16 +38,16 @@ func NewList(code, path string, migrations embed.FS) (l *List) {
 func (f *File) GetVersionFromName() (v int, err error) {
 	sList := strings.Split(f.Name, "_")
 	if len(sList) == 0 {
-		return 0, fmt.Errorf(model.ErrMigrationFileNameInvalid)
+		return 0, e.WrapWithMsg(nil, e.Code0001, "01", e.MsgMigrationFileNameInvalid)
 	}
 
 	v, err = strconv.Atoi(sList[0])
 	if err != nil {
-		return 0, errors.Wrap(err, "GetVersionFromName.1", model.ErrMigrationFileNameInvalid)
+		return 0, e.WrapWithMsg(err, e.Code0001, "02", e.MsgMigrationFileNameInvalid)
 	}
 
 	if v <= 0 {
-		return 0, errors.Wrap(err, "GetVersionFromName.2", model.ErrMigrationFileNameInvalid)
+		return 0, e.WrapWithMsg(err, e.Code0001, "03", e.MsgMigrationFileNameInvalid)
 	}
 
 	return v, nil
@@ -61,7 +59,7 @@ func (l List) GetLatestMigrationFiles(v int) (fList []*File, err error) {
 
 	dirList, err := l.migrations.ReadDir(l.path)
 	if err != nil {
-		return nil, errors.Wrap(err, "GetLatestMigrationFiles.1", "")
+		return nil, e.Wrap(err, e.Code0002, "01")
 	}
 	fList = make([]*File, 0, len(dirList))
 
@@ -81,7 +79,7 @@ func (l List) GetLatestMigrationFiles(v int) (fList []*File, err error) {
 
 		f.Version, err = f.GetVersionFromName()
 		if err != nil {
-			return nil, errors.Wrap(err, "GetLatestMigrationFiles.2", "")
+			return nil, e.Wrap(err, e.Code0002, "02")
 		}
 
 		// TODO: ensure incremental versions?
@@ -93,7 +91,7 @@ func (l List) GetLatestMigrationFiles(v int) (fList []*File, err error) {
 		// Should be a file we are looking for
 		f.SQL, err = l.migrations.ReadFile(embededFilePath)
 		if err != nil {
-			return nil, errors.Wrap(err, "GetLatestMigrationFiles.3", "")
+			return nil, e.Wrap(err, e.Code0002, "03")
 		}
 
 		fList = append(fList, f)

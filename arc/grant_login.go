@@ -2,9 +2,10 @@ package arc
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/Skyrin/go-lib/arc/sqlmodel"
-	gle "github.com/Skyrin/go-lib/errors"
+	"github.com/Skyrin/go-lib/e"
 )
 
 // GrantUserinfo
@@ -31,7 +32,7 @@ type GrantUserinfo struct {
 func (c *Client) GrantLogin(credentialID int, username, password string) (g *Grant, err error) {
 	credential, err := sqlmodel.CredentialGetByID(c.deployment.DB, credentialID)
 	if err != nil {
-		return nil, gle.Wrap(err, "GrantLogin.1", "")
+		return nil, e.Wrap(err, e.Code0401, "01")
 	}
 
 	params := []interface{}{
@@ -48,25 +49,25 @@ func (c *Client) GrantLogin(credentialID int, username, password string) (g *Gra
 
 	ca, err := c.getClientAuth()
 	if err != nil {
-		return nil, gle.Wrap(err, "GrantLogin.2", "")
+		return nil, e.Wrap(err, e.Code0401, "02")
 	}
 	res, err := c.sendSingleRequestItem(
 		c.deployment.getManageCoreServiceURL(),
 		ri,
 		ca)
 	if err != nil {
-		return nil, gle.Wrap(err, "GrantLogin.3", "")
+		return nil, e.Wrap(err, e.Code0401, "03")
 	}
 
 	g = &Grant{}
 	if err := json.Unmarshal(res.Data, g); err != nil {
-		return nil, gle.Wrap(err, "GrantLogin.4", "")
+		return nil, e.Wrap(err, e.Code0401, "04")
 	}
 
 	// Get the arc user id associated with this token
 	gui, err := c.GrantUserinfo(g.Token)
 	if err != nil {
-		return nil, gle.Wrap(err, "GrantLogin.5", "")
+		return nil, e.Wrap(err, e.Code0401, "05")
 	}
 
 	// Save the grant in the arc_deployment_grant table.
@@ -89,7 +90,7 @@ func (c *Client) GrantLogin(credentialID int, username, password string) (g *Gra
 		RefreshToken:       g.RefreshToken,
 		RefreshTokenExpiry: g.RefreshTokenExpiry,
 	}); err != nil {
-		return nil, gle.Wrap(err, "GrantLogin.6", "")
+		return nil, e.Wrap(err, e.Code0401, "06")
 	}
 
 	return g, nil
@@ -117,12 +118,12 @@ func (c *Client) GrantUserinfo(accessToken string) (gui *GrantUserinfo, err erro
 			accessToken: accessToken,
 		})
 	if err != nil {
-		return nil, gle.Wrap(err, "GrantUserinfo.2", "")
+		return nil, e.Wrap(err, e.Code0402, "01")
 	}
 
 	gui = &GrantUserinfo{}
 	if err := json.Unmarshal(res.Data, gui); err != nil {
-		return nil, gle.Wrap(err, "GrantUserinfo.3", "")
+		return nil, e.Wrap(err, e.Code0402, "02")
 	}
 
 	return gui, nil
@@ -131,28 +132,37 @@ func (c *Client) GrantUserinfo(accessToken string) (gui *GrantUserinfo, err erro
 // GrantRevoke removes the access token from the arc_deployment_grant table and makes a call
 // to the associated arc deployment to revoke the grant (access token)
 func (c *Client) GrantRevoke(accessToken string) (err error) {
-    // Purge the grant from the table
-    if err := sqlmodel.DeploymentGrantPurgeByToken(c.deployment.DB, accessToken); err != nil {
-        return gle.Wrap(err, "GrantRevoke.1", "")
-    }
+	if accessToken == "" {
+		return nil
+	}
 
-    // Now revoke the grant in arc
-    params := []interface{}{}
+	// Purge the grant from the table
+	if err := sqlmodel.DeploymentGrantPurgeByToken(c.deployment.DB, accessToken); err != nil {
+		return e.Wrap(err, e.Code0403, "01")
+	}
 
-    ri := &RequestItem{
-        Service: "core",
-        Action:  "oauth2.Grant.revoke",
-        Params:  params,
-    }
+	// Now revoke the grant in arc
+	params := []interface{}{}
 
-    ca := &clientAuth{accessToken: accessToken}
-    _, err = c.sendSingleRequestItem(
-        c.deployment.getManageCoreServiceURL(),
-        ri,
-        ca)
-    if err != nil {
-        return gle.Wrap(err, "GrantRevoke.2", "")
-    }
+	ri := &RequestItem{
+		Service: "core",
+		Action:  "oauth2.Grant.revoke",
+		Params:  params,
+	}
 
-    return nil
+	ca := &clientAuth{accessToken: accessToken}
+	_, err = c.sendSingleRequestItem(
+		c.deployment.getManageCoreServiceURL(),
+		ri,
+		ca)
+	if err != nil {
+		// If got authorization failed due to not being logged in, then just return nil
+		if e.ContainsError(err, E01F1A8_AuthorizationFailed) {
+			return nil
+		}
+		return e.Wrap(err, e.Code0403, "03",
+			fmt.Sprintf("url: %s", c.deployment.getManageCoreServiceURL()))
+	}
+
+	return nil
 }
