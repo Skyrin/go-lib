@@ -6,7 +6,7 @@ import (
 
 	"github.com/Skyrin/go-lib/arc/model"
 	"github.com/Skyrin/go-lib/arc/sqlmodel"
-	"github.com/Skyrin/go-lib/errors"
+	"github.com/Skyrin/go-lib/e"
 	"github.com/Skyrin/go-lib/sql"
 	"github.com/rs/zerolog/log"
 )
@@ -38,7 +38,7 @@ func (d *Deployment) UpdateGrant(g *Grant) (err error) {
 		RefreshToken:       &g.RefreshToken,
 		RefreshTokenExpiry: &g.RefreshTokenExpiry,
 	}); err != nil {
-		return errors.Wrap(err, "Client.Connect.3", "")
+		return e.Wrap(err, e.Code040I, "01")
 	}
 
 	return nil
@@ -48,12 +48,12 @@ func (d *Deployment) UpdateGrant(g *Grant) (err error) {
 func NewDeployment(db *sql.Connection, deploymentCode string) (d *Deployment, err error) {
 	md, err := sqlmodel.DeploymentGetByCode(db, deploymentCode)
 	if err != nil {
-		return nil, errors.Wrap(err, "NewDeployment.1", "")
+		return nil, e.Wrap(err, e.Code040J, "01")
 	}
 
 	dn, err := NewDeploymentNotify()
 	if err != nil {
-		return nil, errors.Wrap(err, "NewDeployment.2", "")
+		return nil, e.Wrap(err, e.Code040J, "02")
 	}
 
 	dn.Notify = func(deploymentCode string) {

@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	arcerrors "github.com/Skyrin/go-lib/arc/errors"
 	"github.com/Skyrin/go-lib/arc/model"
-	gle "github.com/Skyrin/go-lib/errors"
+	"github.com/Skyrin/go-lib/e"
 	"github.com/Skyrin/go-lib/sql"
 )
 
@@ -71,7 +70,7 @@ func DeploymentGrantInsert(db *sql.Connection, ip *DeploymentGrantInsertParam) (
 
 	id, err = db.ExecInsertReturningID(ib)
 	if err != nil {
-		return 0, gle.Wrap(err, "DeploymentGrantUpdate.1", "")
+		return 0, e.Wrap(err, e.Code040W, "01")
 	}
 
 	return id, nil
@@ -106,7 +105,7 @@ func DeploymentGrantUpdate(db *sql.Connection, id int, up *DeploymentGrantUpdate
 
 	err = db.ExecUpdate(ub)
 	if err != nil {
-		return gle.Wrap(err, "DeploymentGrantUpdate.1", "")
+		return e.Wrap(err, e.Code040X, "01")
 	}
 
 	return nil
@@ -142,14 +141,14 @@ func DeploymentGrantGet(db *sql.Connection,
 
 	stmt, bindList, err := sb.ToSql()
 	if err != nil {
-		return nil, 0, gle.Wrap(err, "DeploymentGrantGet.1", "")
+		return nil, 0, e.Wrap(err, e.Code040Y, "01")
 	}
 
 	if p.FlagCount {
 		row := db.QueryRow(strings.Replace(stmt, "{fields}", "count(*)", 1), bindList...)
 		if err := row.Scan(&count); err != nil {
-			return nil, 0, gle.Wrap(err, fmt.Sprintf("DeploymentGrantGet.2 | stmt: %s, bindList: %+v",
-				stmt, bindList), "")
+			return nil, 0, e.Wrap(err, e.Code040Y, "02",
+				fmt.Sprintf("stmt: %s", stmt))
 		}
 	}
 
@@ -168,7 +167,7 @@ func DeploymentGrantGet(db *sql.Connection,
 
 	rows, err := db.Query(stmt, bindList...)
 	if err != nil {
-		return nil, 0, gle.Wrap(err, "DeploymentGrantGet.3", "")
+		return nil, 0, e.Wrap(err, e.Code040Y, "03")
 	}
 	defer rows.Close()
 
@@ -178,7 +177,7 @@ func DeploymentGrantGet(db *sql.Connection,
 			&dg.CredentialID,
 			&dg.Token, &dg.TokenExpiry,
 			&dg.RefreshToken, &dg.RefreshTokenExpiry); err != nil {
-			return nil, 0, gle.Wrap(err, "DeploymentGrantGet.4", "")
+			return nil, 0, e.Wrap(err, e.Code040Y, "04")
 		}
 
 		dgList = append(dgList, dg)
@@ -195,12 +194,24 @@ func DeploymentGrantGetByToken(db *sql.Connection, token string) (dg *model.Depl
 	})
 
 	if err != nil {
-		return nil, gle.Wrap(err, "DeploymentGrantGetByToken.1", "")
+		return nil, e.Wrap(err, e.Code040Z, "01")
 	}
 
 	if len(dgList) != 1 {
-		return nil, fmt.Errorf(arcerrors.ErrGrantDoesNotExist)
+		return nil, e.New(e.Code040Z, "01", e.MsgGrantDoesNotExist)
 	}
 
 	return dgList[0], nil
+}
+
+// DeploymentGrantPurgeByToken purges a record by the token
+func DeploymentGrantPurgeByToken(db *sql.Connection, token string) (err error) {
+	delB := db.Delete(DeploymentGrantTableName).
+		Where("arc_deployment_grant_token=?", token)
+
+	if err := db.ExecDelete(delB); err != nil {
+		return e.Wrap(err, e.Code0410, "01")
+	}
+
+	return nil
 }

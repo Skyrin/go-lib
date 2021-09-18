@@ -5,7 +5,7 @@ package algolia
 import (
 	"fmt"
 
-	"github.com/Skyrin/go-lib/errors"
+	"github.com/Skyrin/go-lib/e"
 	"github.com/algolia/algoliasearch-client-go/v3/algolia/search"
 )
 
@@ -17,9 +17,9 @@ type Algolia struct {
 
 // AlgoliaConfig contains the config information for the Algolia account to use
 type AlgoliaConfig struct {
-	App       string
-	Key       string
-	Index     string
+	App   string
+	Key   string
+	Index string
 }
 
 // AlgoliaObject an Algolia object
@@ -54,7 +54,7 @@ func NewAlgolia(config *AlgoliaConfig) (alg *Algolia, err error) {
 func (alg *Algolia) Push(item interface{}) (err error) {
 	_, err = alg.Index.SaveObject(item)
 	if err != nil {
-		return errors.Wrap(err, "Algolia.Push.1", "")
+		return e.Wrap(err, e.Code0501, "01")
 	}
 
 	return nil
@@ -64,7 +64,7 @@ func (alg *Algolia) Push(item interface{}) (err error) {
 func (alg *Algolia) Delete(objectID string) (err error) {
 	_, err = alg.Index.DeleteObject(objectID)
 	if err != nil {
-		return errors.Wrap(err, "Algolia.Delete.1", "")
+		return e.Wrap(err, e.Code0502, "01")
 	}
 
 	return nil

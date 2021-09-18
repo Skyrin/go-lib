@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/Skyrin/go-lib/errors"
+	"github.com/Skyrin/go-lib/e"
 )
 
 // ResponseList represents the notification service response
@@ -31,15 +31,8 @@ type Response struct {
 // responseErrors returns errors found in the response if any.  Can add other checks for errors
 func (nrl *ResponseList) responseErrors() error {
 	if !nrl.Success {
-		return errors.Wrap(fmt.Errorf("%+v", nrl), "responseErrors.1", "")
+		return e.New(e.Code040Q, "01", fmt.Sprintf("%+v", nrl))
 	}
-
-	// Let the caller check success of individual responses
-	// for _, v := range nrl.Responses {
-	// 	if !v.Success {
-	// 		return errors.Wrap(fmt.Errorf("%+v", nrl), "responseErrors.2", "")
-	// 	}
-	// }
 
 	return nil
 }

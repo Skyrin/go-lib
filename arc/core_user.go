@@ -4,8 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	arcerrors "github.com/Skyrin/go-lib/arc/errors"
-	gle "github.com/Skyrin/go-lib/errors"
+	"github.com/Skyrin/go-lib/e"
 )
 
 // RegisterCoreUser attempts to create the core user in arc. If the
@@ -40,7 +39,7 @@ func (c *Client) RegisterCoreUser(ui *ArcUser, retry bool) (au *ArcUser, err err
 
 	ca, err := c.getClientAuth()
 	if err != nil {
-		return nil, gle.Wrap(err, "RegisterCoreUser.1", "")
+		return nil, e.Wrap(err, e.Code040G, "01")
 	}
 
 	res, err := c.sendSingleRequestItem(
@@ -61,22 +60,22 @@ func (c *Client) RegisterCoreUser(ui *ArcUser, retry bool) (au *ArcUser, err err
 			// First now fetch that user
 			au, err = c.CoreUserGetByUsername(ui.Username)
 			if err != nil {
-				return nil, gle.Wrap(err, "RegisterCoreUser.2", "")
+				return nil, e.Wrap(err, e.Code040G, "02")
 			}
 
 			// Try to upsert with the id now
 			ui.ArcUserID = au.ID
 			au, err = c.RegisterCoreUser(ui, false)
 			if err != nil {
-				return nil, gle.Wrap(err, "RegisterCoreUser.3", "")
+				return nil, e.Wrap(err, e.Code040G, "03")
 			}
 		} else {
-			return nil, gle.Wrap(err, "RegisterCoreUser.4", "")
+			return nil, e.Wrap(err, e.Code040G, "04")
 		}
 	} else {
 		au = &ArcUser{}
 		if err := json.Unmarshal(res.Data, au); err != nil {
-			return nil, gle.Wrap(err, "RegisterCoreUser.5", "")
+			return nil, e.Wrap(err, e.Code040G, "05")
 		}
 	}
 
@@ -100,23 +99,23 @@ func (c *Client) CoreUserGetByUsername(username string) (au *ArcUser, err error)
 
 	ca, err := c.getClientAuth()
 	if err != nil {
-		return nil, gle.Wrap(err, "CoreUserGetByUsername.1", "")
+		return nil, e.Wrap(err, e.Code040H, "01")
 	}
 	res, err := c.sendSingleRequestItem(
 		c.deployment.getAPICoreServiceURL(),
 		ri,
 		ca)
 	if err != nil {
-		return nil, gle.Wrap(err, "CoreUserGetByUsername.2", "")
+		return nil, e.Wrap(err, e.Code040H, "02")
 	}
 
 	auList := []*ArcUser{}
 	if err := json.Unmarshal(res.Data, &auList); err != nil {
-		return nil, gle.Wrap(err, "CoreUserGetByUsername.3", "")
+		return nil, e.Wrap(err, e.Code040H, "03")
 	}
 
 	if len(auList) != 1 {
-		return nil, fmt.Errorf(arcerrors.ErrCoreUserNotExists)
+		return nil, fmt.Errorf(e.MsgCoreUserNotExists)
 	}
 
 	return auList[0], nil

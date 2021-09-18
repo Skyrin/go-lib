@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	arcerrors "github.com/Skyrin/go-lib/arc/errors"
 	"github.com/Skyrin/go-lib/arc/model"
-	gle "github.com/Skyrin/go-lib/errors"
+	"github.com/Skyrin/go-lib/e"
 	"github.com/Skyrin/go-lib/sql"
 )
 
@@ -50,14 +49,15 @@ func CredentialGet(db *sql.Connection,
 
 	stmt, bindList, err := sb.ToSql()
 	if err != nil {
-		return nil, 0, gle.Wrap(err, "CredentialGet.1", "")
+		return nil, 0, e.Wrap(err, e.Code040R, "01")
 	}
 
 	if p.FlagCount {
 		row := db.QueryRow(strings.Replace(stmt, "{fields}", "count(*)", 1), bindList...)
 		if err := row.Scan(&count); err != nil {
-			return nil, 0, gle.Wrap(err, fmt.Sprintf("CredentialGet.2 | stmt: %s, bindList: %+v",
-				stmt, bindList), "")
+			return nil, 0, e.Wrap(err, e.Code040R, "02",
+				fmt.Sprintf("CredentialGet.2 | stmt: %s, bindList: %+v",
+					stmt, bindList))
 		}
 	}
 
@@ -76,7 +76,7 @@ func CredentialGet(db *sql.Connection,
 
 	rows, err := db.Query(stmt, bindList...)
 	if err != nil {
-		return nil, 0, gle.Wrap(err, "CredentialGet.3", "")
+		return nil, 0, e.Wrap(err, e.Code040R, "03")
 	}
 	defer rows.Close()
 
@@ -84,7 +84,7 @@ func CredentialGet(db *sql.Connection,
 		c := &model.Credential{}
 		if err := rows.Scan(&c.ID, &c.DeploymentID, &c.Name,
 			&c.ClientID, &c.ClientSecret); err != nil {
-			return nil, 0, gle.Wrap(err, "CredentialGet.4", "")
+			return nil, 0, e.Wrap(err, e.Code040R, "04")
 		}
 
 		cList = append(cList, c)
@@ -101,11 +101,11 @@ func CredentialGetByID(db *sql.Connection, id int) (c *model.Credential, err err
 	})
 
 	if err != nil {
-		return nil, gle.Wrap(err, "CredentialGetByCode.1", "")
+		return nil, e.Wrap(err, e.Code040S, "01")
 	}
 
 	if len(cList) != 1 {
-		return nil, fmt.Errorf(arcerrors.ErrCredentialDoesNotExist)
+		return nil, e.New(e.Code040S, "01", e.MsgCredentialDoesNotExist)
 	}
 
 	return cList[0], nil

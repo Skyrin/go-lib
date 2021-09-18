@@ -21,9 +21,8 @@ package migration
 
 import (
 	"embed"
-	"fmt"
 
-	"github.com/Skyrin/go-lib/errors"
+	"github.com/Skyrin/go-lib/e"
 	"github.com/Skyrin/go-lib/migration/model"
 	"github.com/Skyrin/go-lib/migration/sqlmodel"
 	"github.com/Skyrin/go-lib/sql"
@@ -43,14 +42,9 @@ const (
 )
 
 type Migrator struct {
-	version    int
 	db         *sql.Connection
 	latest     *model.Migration
 	migrations []*List
-	// migrations    []*File
-	schema        string
-	migrationPath string
-	code          string
 }
 
 // NewMigrator initializes a new migrator
@@ -66,15 +60,15 @@ func NewMigrator(db *sql.Connection) (m *Migrator, err error) {
 		migrations: migrations,
 	}
 	if err := m.AddMigrationList(ml); err != nil {
-		if !errors.ContainsError(err, model.ErrMigrationNotInstalled) {
-			return nil, errors.Wrap(err, "NewMigrator.1", "")
+		if !e.ContainsError(err, e.MsgMigrationNotInstalled) {
+			return nil, e.Wrap(err, e.Code0003, "01")
 		}
 		if err := m.install(ml); err != nil {
-			return nil, errors.Wrap(err, "NewMigrator.2", "")
+			return nil, e.Wrap(err, e.Code0003, "02")
 		}
 		// Try to add again now that the migrator is installed
 		if err := m.AddMigrationList(ml); err != nil {
-			return nil, errors.Wrap(err, "NewMigrator.3", "")
+			return nil, e.Wrap(err, e.Code0003, "03")
 		}
 	}
 
@@ -89,8 +83,8 @@ func (m *Migrator) AddMigrationList(ml *List) (err error) {
 		// If the migrations library has not been installed or there are no
 		// migrations for the specified code yet, then return a place holder
 		// Otherwise, return the error now
-		if !errors.ContainsError(err, model.ErrMigrationNone) {
-			return errors.Wrap(err, "AddMigrationList.1", "")
+		if !e.ContainsError(err, e.MsgMigrationNone) {
+			return e.Wrap(err, e.Code0004, "01")
 		}
 
 		// If no migrations exist, then this is a brand new installation
@@ -110,7 +104,7 @@ func (m *Migrator) AddMigrationList(ml *List) (err error) {
 
 	ml.files, err = ml.GetLatestMigrationFiles(mm.Version)
 	if err != nil {
-		return errors.Wrap(err, "AddMigrationList.2", "")
+		return e.Wrap(err, e.Code0004, "02")
 	}
 
 	m.migrations = append(m.migrations, ml)
@@ -124,17 +118,16 @@ func (m *Migrator) install(ml *List) (err error) {
 
 	files, err := ml.GetLatestMigrationFiles(0)
 	if err != nil {
-		return errors.Wrap(err, "AddMigrationList.1", "")
+		return e.Wrap(err, e.Code0005, "01")
 	}
 
 	if len(files) == 0 {
-		return errors.Wrap(fmt.Errorf(model.ErrMigrationInstallFailed),
-			"AddMigrationList.2", "")
+		return e.New(e.Code0005, "02", e.MsgMigrationInstallFailed)
 	}
 
 	// Only run the first migration, the rest will be run via regular upgrade
 	if _, err := m.db.Exec(string(files[0].SQL)); err != nil {
-		return errors.Wrap(err, "Migrator.install.3", "")
+		return e.Wrap(err, e.Code0005, "03")
 	}
 
 	return nil
@@ -149,7 +142,7 @@ func (m *Migrator) Upgrade() (err error) {
 			// Check if this file should be run or not
 			id, run, err := m.checkShouldRunFile(ml, f)
 			if err != nil {
-				return errors.Wrap(err, "Migrator.Upgrade.1", "")
+				return e.Wrap(err, e.Code0006, "01")
 			}
 			if !run {
 				// If it shouldn't run, then skip it
@@ -157,7 +150,7 @@ func (m *Migrator) Upgrade() (err error) {
 			}
 
 			if err := m.processFile(id, ml, f); err != nil {
-				return errors.Wrap(err, "Migrator.Upgrade.2", "")
+				return e.Wrap(err, e.Code0006, "02")
 			}
 		}
 	}
@@ -174,9 +167,9 @@ func (m *Migrator) checkShouldRunFile(ml *List, f *File) (id int, shouldRun bool
 	// Check if we tried to process it already
 	mm, err := sqlmodel.MigrationGetByCodeAndVersion(m.db, ml.code, f.Version)
 	if err != nil {
-		// Return error if it is not model.ErrMigrationCodeVersionDNE
-		if !errors.ContainsError(err, model.ErrMigrationCodeVersionDNE) {
-			return 0, false, errors.Wrap(err, "Migrator.checkShouldRunFile.1", "")
+		// Return error if it is not e.MsgMigrationCodeVersionDNE
+		if !e.ContainsError(err, e.MsgMigrationCodeVersionDNE) {
+			return 0, false, e.Wrap(err, e.Code0007, "01")
 		}
 
 		// If we didn't try to process it, then insert it now
@@ -188,7 +181,7 @@ func (m *Migrator) checkShouldRunFile(ml *List, f *File) (id int, shouldRun bool
 			Err:     "",
 		})
 		if err != nil {
-			return 0, false, errors.Wrap(err, "Migrator.checkShouldRunFile.2", "")
+			return 0, false, e.Wrap(err, e.Code0007, "02")
 		}
 	} else {
 		id = mm.ID
@@ -204,35 +197,6 @@ func (m *Migrator) checkShouldRunFile(ml *List, f *File) (id int, shouldRun bool
 
 // processFile attempts to run the migration file
 func (m *Migrator) processFile(id int, ml *List, f *File) (err error) {
-
-	// // Check if we tried to process it already
-	// mm, err := sqlmodel.MigrationGetByCodeAndVersion(m.db, ml.code, f.Version)
-	// if err != nil {
-	// 	// Return error if it is not model.ErrMigrationCodeVersionDNE
-	// 	if !errors.ContainsError(err, model.ErrMigrationCodeVersionDNE) {
-	// 		return errors.Wrap(err, "Migrator.processFile.1", "")
-	// 	}
-
-	// 	// If we didn't try to process it, then insert it now
-	// 	id, err = sqlmodel.MigrationInsert(m.db, &sqlmodel.MigrationInsertParam{
-	// 		Code:    ml.code,
-	// 		Version: f.Version,
-	// 		Status:  model.MIGRATION_STATUS_PENDING,
-	// 		SQL:     string(f.SQL),
-	// 		Err:     "",
-	// 	})
-	// 	if err != nil {
-	// 		return errors.Wrap(err, "Migrator.processFile.2", "")
-	// 	}
-	// } else {
-	// 	id = mm.ID
-	// }
-
-	// if mm != nil && mm.Status == model.MIGRATION_STATUS_COMPLETE {
-	// 	// If this version was already complete, then skip it
-	// 	return nil
-	// }
-
 	// TODO: begin/commit/rollback?
 	var status, errMsg string
 	if _, err := m.db.Exec(string(f.SQL)); err != nil {
@@ -242,9 +206,9 @@ func (m *Migrator) processFile(id int, ml *List, f *File) (err error) {
 			Status: &status,
 			Err:    &errMsg,
 		}); err2 != nil {
-			return errors.Wrap(err2, "Migrator.processFile.2", "")
+			return e.Wrap(err, e.Code0008, "01")
 		}
-		return errors.Wrap(err, "Migrator.processFile.3", "")
+		return e.Wrap(err, e.Code0008, "02")
 	}
 
 	status = model.MIGRATION_STATUS_COMPLETE
@@ -253,7 +217,7 @@ func (m *Migrator) processFile(id int, ml *List, f *File) (err error) {
 		Status: &status,
 		Err:    &errMsg,
 	}); err != nil {
-		return errors.Wrap(err, "Migrator.processFile.4", "")
+		return e.Wrap(err, e.Code0008, "03")
 	}
 
 	log.Info().Msgf("successfully migrated '%s' to version: %v",

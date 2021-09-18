@@ -4,8 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	arcerrors "github.com/Skyrin/go-lib/arc/errors"
-	gle "github.com/Skyrin/go-lib/errors"
+	"github.com/Skyrin/go-lib/e"
 )
 
 // RegisterCartCustomer attempts to create the cart customer in arc. If the
@@ -40,7 +39,7 @@ func (c *Client) RegisterCartCustomer(storeCode string,
 
 	ca, err := c.getClientAuth()
 	if err != nil {
-		return nil, gle.Wrap(err, "RegisterCartCustomer.1", "")
+		return nil, e.Wrap(err, e.Code040E, "01")
 	}
 	res, err := c.sendSingleRequestItem(
 		c.deployment.getManageCartServiceURL(storeCode),
@@ -59,22 +58,22 @@ func (c *Client) RegisterCartCustomer(storeCode string,
 			// First now fetch that user
 			cust, err = c.CartGetCustomerByUsername(storeCode, ci.Username)
 			if err != nil {
-				return nil, gle.Wrap(err, "RegisterCartCustomer.2", "")
+				return nil, e.Wrap(err, e.Code040E, "02")
 			}
 
 			// Try to upsert with the id now
 			ci.ArcUserID = cust.ID
 			cust, err = c.RegisterCartCustomer(storeCode, ci, false)
 			if err != nil {
-				return nil, gle.Wrap(err, "RegisterCartCustomer.3", "")
+				return nil, e.Wrap(err, e.Code040E, "02")
 			}
 		} else {
-			return nil, gle.Wrap(err, "RegisterCartCustomer.4", "")
+			return nil, e.Wrap(err, e.Code040E, "04")
 		}
 	} else {
 		cust = &ArcUser{}
 		if err := json.Unmarshal(res.Data, cust); err != nil {
-			return nil, gle.Wrap(err, "CartUpsertCustomer.5", "")
+			return nil, e.Wrap(err, e.Code040E, "05")
 		}
 	}
 
@@ -98,23 +97,23 @@ func (c *Client) CartGetCustomerByUsername(storeCode, username string) (cust *Ar
 
 	ca, err := c.getClientAuth()
 	if err != nil {
-		return nil, gle.Wrap(err, "CartUpsertCustomer.1", "")
+		return nil, e.Wrap(err, e.Code040F, "01")
 	}
 	res, err := c.sendSingleRequestItem(
 		c.deployment.getManageCartServiceURL(storeCode),
 		ri,
 		ca)
 	if err != nil {
-		return nil, gle.Wrap(err, "CartGetCustomer.2", "")
+		return nil, e.Wrap(err, e.Code040F, "02")
 	}
 
 	custList := []*ArcUser{}
 	if err := json.Unmarshal(res.Data, &custList); err != nil {
-		return nil, gle.Wrap(err, "CartGetCustomer.3", "")
+		return nil, e.Wrap(err, e.Code040F, "03")
 	}
 
 	if len(custList) != 1 {
-		return nil, fmt.Errorf(arcerrors.ErrCartCustomerNotExists)
+		return nil, fmt.Errorf(e.MsgCartCustomerNotExists)
 	}
 
 	return custList[0], nil

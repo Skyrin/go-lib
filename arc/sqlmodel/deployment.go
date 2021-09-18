@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/Skyrin/go-lib/arc/model"
-	gle "github.com/Skyrin/go-lib/errors"
+	"github.com/Skyrin/go-lib/e"
 	"github.com/Skyrin/go-lib/sql"
 )
 
@@ -61,7 +61,7 @@ func DeploymentUpdate(db *sql.Connection, id int, dup *DeploymentUpdateParam) (e
 
 	err = db.ExecUpdate(ub)
 	if err != nil {
-		return gle.Wrap(err, "DeploymentUpdate.1", "")
+		return e.Wrap(err, e.Code040T, "01")
 	}
 
 	return nil
@@ -95,14 +95,14 @@ func DeploymentGet(db *sql.Connection,
 
 	stmt, bindList, err := sb.ToSql()
 	if err != nil {
-		return nil, 0, gle.Wrap(err, "DeploymentGet.1", "")
+		return nil, 0, e.Wrap(err, e.Code040U, "01")
 	}
 
 	if p.FlagCount {
 		row := db.QueryRow(strings.Replace(stmt, "{fields}", "count(*)", 1), bindList...)
 		if err := row.Scan(&count); err != nil {
-			return nil, 0, gle.Wrap(err, fmt.Sprintf("DeploymentGet.2 | stmt: %s, bindList: %+v",
-				stmt, bindList), "")
+			return nil, 0, e.Wrap(err, e.Code040U, "02",
+				fmt.Sprintf("stmt: %s, bindList: %+v", stmt, bindList))
 		}
 	}
 
@@ -121,7 +121,7 @@ func DeploymentGet(db *sql.Connection,
 
 	rows, err := db.Query(stmt, bindList...)
 	if err != nil {
-		return nil, 0, gle.Wrap(err, "DeploymentGet.3", "")
+		return nil, 0, e.Wrap(err, e.Code040U, "03")
 	}
 	defer rows.Close()
 
@@ -133,7 +133,7 @@ func DeploymentGet(db *sql.Connection,
 			&d.Token, &d.TokenExpiry,
 			&d.RefreshToken, &d.RefreshTokenExpiry,
 			&d.LogEventCode, &d.LogPublishKey); err != nil {
-			return nil, 0, gle.Wrap(err, "DeploymentGet.4", "")
+			return nil, 0, e.Wrap(err, e.Code040U, "04")
 		}
 
 		dList = append(dList, d)
@@ -150,11 +150,11 @@ func DeploymentGetByCode(db *sql.Connection, code string) (d *model.Deployment, 
 	})
 
 	if err != nil {
-		return nil, gle.Wrap(err, "DeploymentGetByCode.1", "")
+		return nil, e.Wrap(err, e.Code040V, "01")
 	}
 
 	if len(dList) != 1 {
-		return nil, gle.Wrap(err, "DeploymentGetByCode.2", "")
+		return nil, e.New(e.Code040V, "02", e.MsgDeploymentDoesNotExist)
 	}
 
 	return dList[0], nil

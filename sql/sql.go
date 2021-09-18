@@ -2,14 +2,13 @@ package sql
 
 import (
 	"fmt"
-	"net/url"
 	"os"
 	"strings"
 
 	"database/sql"
 
 	sq "github.com/Masterminds/squirrel"
-	"github.com/Skyrin/go-lib/errors"
+	"github.com/Skyrin/go-lib/e"
 	"github.com/rs/zerolog/log"
 
 	// Including postgres library for SQL connections
@@ -108,40 +107,6 @@ func GetConnectionStr(cp *ConnParam) (connStr string) {
 	return csb.String()
 }
 
-func getMigrateConnStr(cp *ConnParam) (connStr string, err error) {
-	var csb strings.Builder
-
-	if cp == nil {
-		cp = GetConnParamFromENV()
-	}
-
-	_, _ = csb.WriteString("postgres://")
-	_, _ = csb.WriteString(cp.User)
-	_, _ = csb.WriteString(":")
-	_, _ = csb.WriteString(url.QueryEscape(cp.Password))
-	_, _ = csb.WriteString("@")
-	_, _ = csb.WriteString(cp.Host)
-	_, _ = csb.WriteString(":")
-	_, _ = csb.WriteString(cp.Port)
-	_, _ = csb.WriteString("/")
-	_, _ = csb.WriteString(cp.DBName)
-	_, _ = csb.WriteString("?")
-
-	if cp.SSLMode != "" {
-		_, _ = csb.WriteString(cp.SSLMode)
-	} else {
-		_, _ = csb.WriteString("sslmode=require")
-	}
-
-	if cp.SearchPath != "" {
-		_, _ = csb.WriteString("&")
-		_, _ = csb.WriteString(cp.SearchPath)
-
-	}
-
-	return csb.String(), nil
-}
-
 // NewPostgresConn initializes a new Postgres connection
 // FIXME: use a pool?
 func NewPostgresConn(cp *ConnParam) (conn *Connection, err error) {
@@ -152,10 +117,10 @@ func NewPostgresConn(cp *ConnParam) (conn *Connection, err error) {
 	//TODO: handle errors better
 	sqlConn, err := sql.Open("postgres", GetConnectionStr(cp))
 	if err != nil {
-		return nil, errors.Wrap(err, "NewPostgresConn.2", "Failed to connect to DB")
+		return nil, e.WrapWithMsg(err, e.Code0201, "01", "Failed to connect to DB")
 	}
 	if err := sqlConn.Ping(); err != nil {
-		return nil, errors.Wrap(err, "NewPostgresConn.3", "Failed to ping DB")
+		return nil, e.WrapWithMsg(err, e.Code0201, "02", "Failed to ping DB")
 	}
 
 	return &Connection{DB: sqlConn, Slug: NewSlug(nil)}, nil
@@ -171,11 +136,11 @@ func (c *Connection) Txn() *sql.Tx {
 // calls until commit/rollback is called
 func (c *Connection) Begin() (err error) {
 	if c.txn != nil {
-		return errors.Wrap(nil, "Connection.Begin.1 - not in a txn", "")
+		return e.WrapWithMsg(nil, e.Code0202, "01", "not in a txn")
 	}
 	c.txn, err = c.DB.Begin()
 	if err != nil {
-		return errors.Wrap(err, "Connection.Begin.2", "")
+		return e.Wrap(err, e.Code0202, "02")
 	}
 
 	return nil
@@ -184,11 +149,11 @@ func (c *Connection) Begin() (err error) {
 // Commit wrapper for sql.Commit. If successfull, will unset the txn object
 func (c *Connection) Commit() (err error) {
 	if c.txn == nil {
-		return errors.Wrap(nil, "Connection.Commit.1 - not in txn", "")
+		return e.WrapWithMsg(nil, e.Code0203, "01", "not in a txn")
 	}
 
 	if err = c.txn.Commit(); err != nil {
-		return errors.Wrap(err, "Connection.Commit.2", "")
+		return e.Wrap(err, e.Code0203, "02")
 	}
 
 	c.txn = nil
@@ -214,35 +179,45 @@ func (c *Connection) Rollback() {
 		log.Warn().Msg("[Connection.Rollback.1] not in txn")
 		return
 		// TODO: replace with this (Rollback needs to return an error)
-		// return errors.Wrap(nil, "Connection.Rollback.1 - not in txn", "")
+		// return e.Wrap(nil, "Connection.Rollback.1 - not in txn", "")
 	}
 
 	if err := c.txn.Rollback(); err != nil {
 		log.Error().Err(err).Msg("[Connection.Rollback.2]")
 		return
 		// TODO: replace with this (Rollback needs to return an error)
-		// return errors.Wrap(err, "Connection.Rollback.2", "")
+		// return e.Wrap(err, "Connection.Rollback.2", "")
 	}
 
 	c.txn = nil
-
-	return
 }
 
 // Query wrapper for sql.Query with automatic txn handling
-func (c *Connection) Query(query string, args ...interface{}) (rows *sql.Rows, err error) {
+func (c *Connection) Query(query string, args ...interface{}) (rows *Rows, err error) {
 	if c.txn != nil {
-		return c.txn.Query(query, args...)
+		sqlRows, err := c.txn.Query(query, args...)
+		if err != nil {
+			// Not logging args because it may contain sensitive information. The
+			// caller can log them if needed
+			return nil, e.Wrap(err, e.Code0204, "01", fmt.Sprintf("query: %s\n", query))
+		}
+		return &Rows{
+			rows: sqlRows,
+			query: query,
+		}, nil
 	}
 
-	rows, err = c.DB.Query(query, args...)
+	sqlRows, err := c.DB.Query(query, args...)
 	if err != nil {
-		// TODO: redact potential sensitive information in args
-		return nil, errors.Wrap(err, fmt.Sprintf("Connection.Query.1 - query: %s\n args: %v",
-			query, args), "")
+		// Not logging args because it may contain sensitive information. The
+		// caller can log them if needed
+		return nil, e.Wrap(err, e.Code0204, "02", fmt.Sprintf("query: %s\n", query))
 	}
 
-	return rows, nil
+	return &Rows{
+		rows: sqlRows,
+		query: query,
+	}, nil
 }
 
 // Exec wrapper for sql.Exec with automatic txn handling
@@ -252,20 +227,26 @@ func (c *Connection) Exec(query string, args ...interface{}) (res sql.Result, er
 	}
 	res, err = c.DB.Exec(query, args...)
 	if err != nil {
-		// TODO: redact potential sensitive information in args
-		return nil, errors.Wrap(err, fmt.Sprintf("Connection.Exec.1 - query: %s\n args: %v",
-			query, args), "")
+		// Not logging args because it may contain sensitive information. The
+		// caller can log them if needed
+		return nil, e.Wrap(err, e.Code0205, "01", fmt.Sprintf("query: %s\n", query))
 	}
 
 	return res, nil
 }
 
 // QueryRow wrapper for sql.QueryRow with automatic txn handling
-func (c *Connection) QueryRow(query string, args ...interface{}) (rows *sql.Row) {
+func (c *Connection) QueryRow(query string, args ...interface{}) (rows *Row) {
 	if c.txn != nil {
-		return c.txn.QueryRow(query, args...)
+		return &Row{
+			row:   c.txn.QueryRow(query, args...),
+			query: query,
+		}
 	}
-	return c.DB.QueryRow(query, args...)
+	return &Row{
+		row:   c.DB.QueryRow(query, args...),
+		query: query,
+	}
 }
 
 // Select wrapper for github.com/Masterminds/squirrel.Select
@@ -295,54 +276,53 @@ func (c *Connection) Expr(sql string, args interface{}) sq.Sqlizer {
 
 // ToSQLAndQuery converts the select build to a SQL statement and bind parameters,
 // then attempts to execute the query, returning the rows
-func (c *Connection) ToSQLAndQuery(sb sq.SelectBuilder) (rows *sql.Rows, err error) {
+func (c *Connection) ToSQLAndQuery(sb sq.SelectBuilder) (rows *Rows, err error) {
 	stmt, bindList, err := sb.ToSql()
 	if err != nil {
-		// TODO: redact sensitive information
-		return nil, errors.Wrap(err,
-			fmt.Sprintf("Connection.ToSQLAndQuery.1 - failed to generate select query - stmt: %s | bind: %+v",
-				stmt, bindList), "")
+		// Not logging args because it may contain sensitive information. The
+		// caller can log them if needed
+		return nil, e.Wrap(err, e.Code0206, "01", fmt.Sprintf("stmt: %s\n", stmt))
 	}
 
-	rows, err = c.DB.Query(stmt, bindList...)
+	sqlRows, err := c.DB.Query(stmt, bindList...)
 	if err != nil {
-		// TODO: redact sensitive information
-		return nil, errors.Wrap(err,
-			fmt.Sprintf("Connection.ToSQLAndQuery.2 - failed to generate select query - stmt: %s | bind: %+v",
-				stmt, bindList), "")
+		// Not logging args because it may contain sensitive information. The
+		// caller can log them if needed
+		return nil, e.Wrap(err, e.Code0206, "02", fmt.Sprintf("stmt: %s\n", stmt))
 	}
 
-	return rows, nil
+	return &Rows{
+		rows: sqlRows,
+		query: stmt,
+	}, nil
 }
 
 // ToSQLAndQueryRow converts the select builder to a SQL statement and bind parameters,
 // then attempts to execute the query, returning a single row
-func (c *Connection) ToSQLAndQueryRow(sb sq.SelectBuilder) (row *sql.Row, err error) {
+func (c *Connection) ToSQLAndQueryRow(sb sq.SelectBuilder) (row *Row, err error) {
 	stmt, bindList, err := sb.ToSql()
 	if err != nil {
-		// TODO: redact sensitive information
-		return nil, errors.Wrap(err,
-			fmt.Sprintf("Connection.ToSQLAndQueryRow.1 - failed to generate select query - stmt: %s | bind: %+v",
-				stmt, bindList), "")
+		// Not logging args because it may contain sensitive information. The
+		// caller can log them if needed
+		return nil, e.Wrap(err, e.Code0207, "01", fmt.Sprintf("stmt: %s\n", stmt))
 	}
 
-	return c.DB.QueryRow(stmt, bindList...), nil
+	return c.QueryRow(stmt, bindList...), nil
 }
 
 // ExecInsert wrapper to generate SQL/bind list and then execute insert query
 func (c *Connection) ExecInsert(ib sq.InsertBuilder) (err error) {
 	stmt, bindList, err := ib.ToSql()
 	if err != nil {
-		// TODO: redact sensitive information
-		return errors.Wrap(err,
-			fmt.Sprintf("Connection.ExecInsert.1 - failed to generate insert query - stmt: %s | bind: %+v",
-				stmt, bindList), "")
+		// Not logging args because it may contain sensitive information. The
+		// caller can log them if needed
+		return e.Wrap(err, e.Code0208, "01", fmt.Sprintf("stmt: %s\n", stmt))
 	}
 
 	if _, err := c.Exec(stmt, bindList...); err != nil {
-		return errors.Wrap(err,
-			fmt.Sprintf("Connection.ExecInsert.2 - stmt: %s | bind: %+v",
-				stmt, bindList), "")
+		// Not logging args because it may contain sensitive information. The
+		// caller can log them if needed
+		return e.Wrap(err, e.Code0208, "02")
 	}
 
 	return nil
@@ -352,14 +332,15 @@ func (c *Connection) ExecInsert(ib sq.InsertBuilder) (err error) {
 func (c *Connection) ExecUpdate(ub sq.UpdateBuilder) (err error) {
 	stmt, bindList, err := ub.ToSql()
 	if err != nil {
-		// TODO: redact sensitive information
-		return errors.Wrap(err,
-			fmt.Sprintf("Connection.ExecUpdate.1 - failed to generate update query - stmt: %s | bind: %+v",
-				stmt, bindList), "")
+		// Not logging args because it may contain sensitive information. The
+		// caller can log them if needed
+		return e.Wrap(err, e.Code0209, "01", fmt.Sprintf("stmt: %s\n", stmt))
 	}
 
 	if _, err := c.Exec(stmt, bindList...); err != nil {
-		return errors.Wrap(err, "Connection.ExecUpdate.2", "")
+		// Not logging args because it may contain sensitive information. The
+		// caller can log them if needed
+		return e.Wrap(err, e.Code0209, "02")
 	}
 
 	return nil
@@ -369,14 +350,15 @@ func (c *Connection) ExecUpdate(ub sq.UpdateBuilder) (err error) {
 func (c *Connection) ExecDelete(delB sq.DeleteBuilder) (err error) {
 	stmt, bindList, err := delB.ToSql()
 	if err != nil {
-		// TODO: redact sensitive information
-		return errors.Wrap(err,
-			fmt.Sprintf("Connection.ExecDelete.1 - failed to generate delete query - stmt: %s | bind: %+v",
-				stmt, bindList), "")
+		// Not logging args because it may contain sensitive information. The
+		// caller can log them if needed
+		return e.Wrap(err, e.Code020A, "01", fmt.Sprintf("stmt: %s\n", stmt))
 	}
 
 	if _, err := c.Exec(stmt, bindList...); err != nil {
-		return errors.Wrap(err, "Connection.ExecDelete.2", "")
+		// Not logging args because it may contain sensitive information. The
+		// caller can log them if needed
+		return e.Wrap(err, e.Code020A, "02")
 	}
 
 	return nil
@@ -386,16 +368,15 @@ func (c *Connection) ExecDelete(delB sq.DeleteBuilder) (err error) {
 func (c *Connection) ExecInsertReturningID(ib sq.InsertBuilder) (id int, err error) {
 	stmt, bindList, err := ib.ToSql()
 	if err != nil {
-		// TODO: redact sensitive information
-		return 0, errors.Wrap(err,
-			fmt.Sprintf("Connection.ExecInsertReturningID - stmt: %s | bind: %+v",
-				stmt, bindList), "")
+		// Not logging args because it may contain sensitive information. The
+		// caller can log them if needed
+		return 0, e.Wrap(err, e.Code020B, "01", fmt.Sprintf("stmt: %s\n", stmt))
 	}
 
 	if err := c.QueryRow(stmt, bindList...).Scan(&id); err != nil {
-		return 0, errors.Wrap(err,
-			fmt.Sprintf("Connection.ExecInsertReturningID.2 | stmt: %s | bind: %+v",
-				stmt, bindList), "")
+		// Not logging args because it may contain sensitive information. The
+		// caller can log them if needed
+		return 0, e.Wrap(err, e.Code020B, "02", fmt.Sprintf("stmt: %s\n", stmt))
 	}
 
 	return id, nil

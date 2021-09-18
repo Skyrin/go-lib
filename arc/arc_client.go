@@ -25,10 +25,10 @@ import (
 	"fmt"
 	"net/http"
 
-	arcerrors "github.com/Skyrin/go-lib/arc/errors"
 	"github.com/Skyrin/go-lib/arc/sqlmodel"
-	"github.com/Skyrin/go-lib/errors"
+	"github.com/Skyrin/go-lib/e"
 	"github.com/Skyrin/go-lib/sql"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -83,15 +83,18 @@ func NewClientFromDeployment(cp *sql.ConnParam,
 
 	db, err := sql.NewPostgresConn(cp)
 	if err != nil {
-		return nil, errors.Wrap(err, "NewClientFromDeployment.1", "")
+		return nil, e.Wrap(err, e.Code0405, "01")
 	}
 
 	d, err := sqlmodel.DeploymentGetByCode(db, deploymentCode)
 	if err != nil {
-		return nil, errors.Wrap(err, "NewClientFromDeployment.2", "")
+		return nil, e.Wrap(err, e.Code0405, "02")
 	}
 
 	deployment, err := NewDeployment(db, deploymentCode)
+	if err != nil {
+		return nil, e.Wrap(err, e.Code0405, "03")
+	}
 
 	deployment.StoreCode = storeCode
 
@@ -109,7 +112,7 @@ func NewClientFromDeployment(cp *sql.ConnParam,
 // Connect attempts to connect to the client
 func (c *Client) Connect() (err error) {
 	if c.deployment == nil {
-		return errors.Wrap(fmt.Errorf("no deployment configured"), "Client.Connect.1", "")
+		return e.New(e.Code0406, "01", "no deployment configured")
 	}
 
 	if c.deployment.Model.Token == "" {
@@ -117,12 +120,12 @@ func (c *Client) Connect() (err error) {
 		g, err := grantClientCredentials(c, c.deployment.Model.ClientID,
 			c.deployment.Model.ClientSecret)
 		if err != nil {
-			return errors.Wrap(err, "Client.Connect.2", "")
+			return e.Wrap(err, e.Code0406, "02")
 		}
 		c.grant = g
 		// Update DB record
 		if err := c.deployment.UpdateGrant(g); err != nil {
-			return errors.Wrap(err, "Client.Connect.3", "")
+			return e.Wrap(err, e.Code0406, "03")
 		}
 		return nil
 	}
@@ -139,19 +142,19 @@ func (c *Client) Connect() (err error) {
 	refreshed, err := c.grant.refresh(c, c.deployment.Model.ClientID,
 		c.deployment.Model.ClientSecret, false)
 	if err != nil {
-		if errors.ContainsError(err, arcerrors.ErrInvalidGrant) {
+		if e.ContainsError(err, e.MsgInvalidGrant) {
 			// Failed to refresh, maybe refresh token expired - so try
 			// to get using client credentials
 			c.deployment.Model.Token = ""
 			return c.Connect()
 		}
-		return errors.Wrap(err, "Client.Connect.4", "")
+		return e.Wrap(err, e.Code0406, "04")
 	}
 
 	// If it was refreshed, then save to DB
 	if refreshed {
 		if err := c.deployment.UpdateGrant(c.grant); err != nil {
-			return errors.Wrap(err, "Client.Connect.5", "")
+			return e.Wrap(err, e.Code0406, "05")
 		}
 	}
 
@@ -203,18 +206,18 @@ func (c *Client) AddRequest(req RequestItem) {
 // Flush sends whatever is in the current queue
 func (c *Client) Flush() (resList *ResponseList, err error) {
 	// TODO: implement
-	return nil, fmt.Errorf("Client.Flush: not implemented yet")
+	return nil, e.New(e.Code0407, "02", "not implemented yet")
 }
 
 // Send performs the actual publish requet to the arc notification service
 func (c *Client) Send(reqItemList []*RequestItem) (resList *ResponseList, err error) {
 	if len(c.RequestList) == 0 {
-		return nil, errors.Wrap(fmt.Errorf("request list is empty"), "Send.1", "")
+		return nil, e.New(e.Code0408, "01", "request list is empty")
 	}
 
 	ca, err := c.getClientAuth()
 	if err != nil {
-		return nil, errors.Wrap(err, "Send.2", "")
+		return nil, e.Wrap(err, e.Code0408, "02")
 	}
 	reqList := c.newRequestList(reqItemList)
 	reqList.setAuth(ca)
@@ -232,7 +235,7 @@ func (c *Client) Send(reqItemList []*RequestItem) (resList *ResponseList, err er
 
 	resList, err = c.send(url, reqList, true)
 	if err != nil {
-		return resList, errors.Wrap(err, "Send.3", "")
+		return resList, e.Wrap(err, e.Code0408, "03")
 	}
 
 	c.RequestList = nil
@@ -253,14 +256,14 @@ func (c *Client) sendSingleRequestItem(url string, ri *RequestItem,
 	// If using an access token for authentication, then retry on failure
 	resList, err := c.send(url, reqList, reqList.AccessToken != "")
 	if err != nil {
-		return nil, errors.Wrap(err, "Client.sendSingleRequestItem.1", "")
+		return nil, e.Wrap(err, e.Code0409, "01")
 	}
 
 	if !resList.Responses[0].Success {
 		return &resList.Responses[0],
-			errors.Wrap(fmt.Errorf("[%s]%s", resList.Responses[0].ErrorCode,
-				resList.Responses[0].Message),
-				"Client.sendSingleRequestItem.2", "")
+			e.New(e.Code0409, "02",
+				fmt.Sprintf("[%s]%s", resList.Responses[0].ErrorCode,
+					resList.Responses[0].Message))
 	}
 
 	return &resList.Responses[0], nil
@@ -275,7 +278,7 @@ func (c *Client) send(url string, r *RequestList,
 
 	req, err := http.NewRequest("POST", url, payload)
 	if err != nil {
-		return nil, errors.Wrap(err, "Client.send.1", "")
+		return nil, e.Wrap(err, e.Code040A, "01")
 	}
 
 	req.Header.Add("Content-Type", "application/json")
@@ -284,19 +287,19 @@ func (c *Client) send(url string, r *RequestList,
 	client := &http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
-		return nil, errors.Wrap(err, "Client.send.2", "")
+		return nil, e.Wrap(err, e.Code040A, "02")
 	}
 	defer res.Body.Close()
 
 	resList = &ResponseList{}
 	decoder := json.NewDecoder(res.Body)
 	if err := decoder.Decode(resList); err != nil {
-		return nil, errors.Wrap(err,
-			fmt.Sprintf("Client.send.3 - url: %+v", req.URL), "")
+		return nil, e.Wrap(err, e.Code040A, "01",
+			fmt.Sprintf("url: %+v", req.URL))
 	}
 
 	if err := resList.responseErrors(); err != nil {
-		return nil, errors.Wrap(err, "Client.send.4", "")
+		return nil, e.Wrap(err, e.Code040A, "04")
 	}
 
 	return resList, nil
@@ -321,7 +324,7 @@ func (c *Client) getClientAuth() (ca *clientAuth, err error) {
 	ca = &clientAuth{}
 	if c.deployment != nil {
 		if err := c.Connect(); err != nil {
-			return nil, errors.Wrap(err, "RequestList.setAuth.1", "")
+			return nil, e.Wrap(err, e.Code040B, "01")
 		}
 		// reqList.AccessToken = c.grant.Token
 		ca.accessToken = c.grant.Token
@@ -335,4 +338,21 @@ func (c *Client) getClientAuth() (ca *clientAuth, err error) {
 
 	// No auth configured, so return nil
 	return nil, nil
+}
+
+// Log sends the extended error to the configured arc log. If not configured does nothing
+func (c *Client) Log(ee *e.ExtendedError) {
+	d := c.GetDeployment()
+	if d == nil {
+		// Deployment not configured, do nothing
+		return
+	}
+
+	// formatting error message
+	msg := fmt.Sprintf("%s\n%s", ee.Message, ee.Error())
+	if err := c.SendArcsignalEventPublish(
+		d.Model.LogEventCode, d.Model.LogPublishKey, msg); err != nil {
+		log.Error().Err(err).Msgf("Error sending to arc log: %s\n%+v",
+			ee.Message, ee.Error())
+	}
 }
