@@ -56,6 +56,9 @@ func (c *Client) GrantLogin(credentialID int, username, password string) (g *Gra
 		ri,
 		ca)
 	if err != nil {
+		if e.ContainsError(err, E01FAAP_InvalidGrantLogin) {
+			return nil, e.New(e.Code0401, "07", e.MsgUnauthorized)
+		}
 		return nil, e.Wrap(err, e.Code0401, "03")
 	}
 
