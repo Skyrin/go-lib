@@ -67,7 +67,7 @@ func (alg *Algolia) Delete(objectID string) (err error) {
 func (alg *Algolia) Sync(db *sql.Connection) (err error) {
 	// Get all items that are pending to be synced to algolia
 	status := []string{model.AlgoliaSyncStatusPending, model.AlgoliaSyncStatusFailed}
-	asList, _, err := sqlmodel.AlgoliaSyncGetByStatus(db, status)
+	asList, _, err := sqlmodel.AlgoliaSyncGetByStatus(db, status, nil)
 	if err != nil {
 		return e.Wrap(err, e.Code0505, "01")
 	}
@@ -88,7 +88,7 @@ func (alg *Algolia) Sync(db *sql.Connection) (err error) {
 		go func(item *model.AlgoliaSync) {
 			defer wg.Done()
 
-			if err = alg.Push(item.Item); err != nil {
+			if err = alg.Push(item); err != nil {
 				log.Warn().Err(err).Msg(fmt.Sprintf("%s%s", e.Code0505, "03"))
 
 				// Change status to failed for that item

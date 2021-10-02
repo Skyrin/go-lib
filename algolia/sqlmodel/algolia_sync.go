@@ -17,13 +17,15 @@ const (
 
 // AlgoliaSyncGetParam model
 type AlgoliaSyncGetParam struct {
-	Limit                  uint64
-	Offset                 uint64
+	Limit                  *uint64
+	Offset                 *uint64
 	ID                     *int
 	AlgoliaObjectID        *string
 	ItemID                 *int
 	Status                 *[]string
+	AlgoliaIndex           *string
 	FlagCount              bool
+	FlagForUpdate          bool
 	OrderByID              string
 	OrderByAlgoliaObjectID string
 }
@@ -31,10 +33,10 @@ type AlgoliaSyncGetParam struct {
 // AlgoliaSyncUpsert performs the DB operation to upsert a record in the algolia_sync table
 func AlgoliaSyncUpsert(db *sql.Connection, input *model.AlgoliaSync) (id int, err error) {
 	ib := db.Insert(AlgoliaSyncTableName).
-		Columns(`algolia_sync_object_id, algolia_sync_item_id, algolia_sync_item, 
+		Columns(`algolia_sync_index, algolia_sync_object_id, algolia_sync_item_id, algolia_sync_item, 
 			algolia_sync_item_hash, algolia_sync_status, 
 			created_on, updated_on`).
-		Values(input.AlgoliaObjectID, input.ItemID, input.Item,
+		Values(input.AlgoliaIndex, input.AlgoliaObjectID, input.ItemID, input.Item,
 			input.ItemHash, input.Status,
 			"now()", "now()").
 		Suffix(`ON CONFLICT (algolia_sync_object_id) DO UPDATE
@@ -70,18 +72,20 @@ func AlgoliaSyncStatusUpdate(db *sql.Connection, id int, status string) (err err
 // AlgoliaSyncGet performs select
 func AlgoliaSyncGet(db *sql.Connection,
 	p *AlgoliaSyncGetParam) (asList []*model.AlgoliaSync, count int, err error) {
-	if p.Limit == 0 {
-		p.Limit = 1
-	}
-
-	fields := `algolia_sync_id, algolia_sync_object_id, algolia_sync_item_id, 
+	fields := `algolia_sync_id, algolia_sync_index, algolia_sync_object_id, algolia_sync_item_id, 
 		algolia_sync_item, algolia_sync_item_hash, algolia_sync_status, 
 		created_on, updated_on`
 
 	sb := db.Select("{fields}").
-		From(AlgoliaSyncTableName).
-		Limit(p.Limit).
-		Suffix("FOR UPDATE")
+		From(AlgoliaSyncTableName)
+
+	if p.Limit != nil && *p.Limit > 0 {
+		sb = sb.Limit(*p.Limit)
+	}
+
+	if p.FlagForUpdate {
+		sb = sb.Suffix("FOR UPDATE")
+	}
 
 	if p.ID != nil && *p.ID >= 0 {
 		sb = sb.Where("algolia_sync_id=?", *p.ID)
@@ -93,6 +97,10 @@ func AlgoliaSyncGet(db *sql.Connection,
 
 	if p.AlgoliaObjectID != nil && len(*p.AlgoliaObjectID) > 0 {
 		sb = sb.Where("algolia_sync_object_id=?", *p.AlgoliaObjectID)
+	}
+
+	if p.AlgoliaIndex != nil && len(*p.AlgoliaIndex) > 0 {
+		sb = sb.Where("algolia_sync_index=?", *p.AlgoliaIndex)
 	}
 
 	if p.Status != nil && len(*p.Status) > 0 {
@@ -113,7 +121,9 @@ func AlgoliaSyncGet(db *sql.Connection,
 		}
 	}
 
-	sb = sb.Offset(uint64(p.Offset))
+	if p.Offset != nil {
+		sb = sb.Offset(uint64(*p.Offset))
+	}
 
 	if p.OrderByID != "" {
 		sb = sb.OrderBy(fmt.Sprintf("algolia_sync_id %s", p.OrderByID))
@@ -133,7 +143,7 @@ func AlgoliaSyncGet(db *sql.Connection,
 
 	for rows.Next() {
 		as := &model.AlgoliaSync{}
-		if err := rows.Scan(&as.ID, &as.AlgoliaObjectID, &as.ItemID, &as.Item,
+		if err := rows.Scan(&as.ID, &as.AlgoliaIndex, &as.AlgoliaObjectID, &as.ItemID, &as.Item,
 			&as.ItemHash, &as.Status, &as.CreatedOn, &as.UpdatedOn); err != nil {
 			return nil, 0, e.Wrap(err, e.Code0503, "04")
 		}
@@ -145,10 +155,11 @@ func AlgoliaSyncGet(db *sql.Connection,
 }
 
 // AlgoliaSyncGetByStatus returns the items with the specified status
-func AlgoliaSyncGetByStatus(db *sql.Connection, status []string) (asList []*model.AlgoliaSync,
+func AlgoliaSyncGetByStatus(db *sql.Connection, status []string, limit *uint64) (asList []*model.AlgoliaSync,
 	count int, err error) {
 	p := &AlgoliaSyncGetParam{
 		Status: &status,
+		Limit:  limit,
 	}
 
 	return AlgoliaSyncGet(db, p)
@@ -156,7 +167,9 @@ func AlgoliaSyncGetByStatus(db *sql.Connection, status []string) (asList []*mode
 
 // AlgoliaSyncGetByItemID searches by the item id
 func AlgoliaSyncGetByItemID(db *sql.Connection, itemID int) (as *model.AlgoliaSync, err error) {
+	limit := uint64(1)
 	p := &AlgoliaSyncGetParam{
+		Limit:  &limit,
 		ItemID: &itemID,
 	}
 
