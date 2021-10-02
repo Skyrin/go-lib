@@ -66,14 +66,18 @@ func (alg *Algolia) Delete(objectID string) (err error) {
 // Sync process to send all 'pending' and 'failed' records to algolia
 func (alg *Algolia) Sync(db *sql.Connection) (err error) {
 	var wg sync.WaitGroup
-	wg.Add(1)
 
-	// TODO: add txn?
+	// Begin a transaction
+	if err := db.Begin(); err != nil {
+		return e.Wrap(err, e.Code0509, "03")
+	}
+	defer db.RollbackIfInTxn()
 
 	// Get all items that are pending to be synced to algolia
 	p := &sqlmodel.AlgoliaSyncGetParam{
 		Status: &[]string{model.AlgoliaSyncStatusPending, model.AlgoliaSyncStatusFailed},
 		DataHandler: func(as *model.AlgoliaSync) error {
+			wg.Add(1)
 			go func(item *model.AlgoliaSync) {
 				defer wg.Done()
 
@@ -91,6 +95,11 @@ func (alg *Algolia) Sync(db *sql.Connection) (err error) {
 	}
 
 	wg.Wait()
+
+	// Commit
+	if err := db.Commit(); err != nil {
+		return e.Wrap(err, e.Code0509, "04")
+	}
 
 	return nil
 }
