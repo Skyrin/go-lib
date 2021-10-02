@@ -29,6 +29,7 @@ type AlgoliaSyncGetParam struct {
 	FlagForUpdate          bool
 	OrderByID              string
 	OrderByAlgoliaObjectID string
+	DataHandler            func(*model.AlgoliaSync) error
 }
 
 // AlgoliaSyncUpsert performs the DB operation to upsert a record in the algolia_sync table
@@ -171,7 +172,13 @@ func AlgoliaSyncGet(db *sql.Connection,
 			return nil, 0, e.Wrap(err, e.Code0503, "04")
 		}
 
-		asList = append(asList, as)
+		if p.DataHandler != nil {
+			if err := p.DataHandler(as); err != nil {
+				return nil, 0, e.Wrap(err, e.Code0503, "05")
+			}
+		} else {
+			asList = append(asList, as)
+		}
 	}
 
 	return asList, count, nil
