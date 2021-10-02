@@ -65,11 +65,42 @@ func pushItemToAlgolia(db *sql.Connection, item *model.AlgoliaSync, alg *Algolia
 	return nil
 }
 
+// deleteItemFromAlgolia deletes the item from algolia
+func deleteItemFromAlgolia(db *sql.Connection, item *model.AlgoliaSync, alg *Algolia) error {
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func(item *model.AlgoliaSync) {
+		defer wg.Done()
+
+		if err := alg.Delete(item.AlgoliaObjectID); err != nil {
+			log.Warn().Err(err).Msg(fmt.Sprintf("%s%s", e.Code050D, "01"))
+
+			// Change status to failed for that item
+			if err := sqlmodel.AlgoliaSyncStatusUpdate(db, item.ID,
+				model.AlgoliaSyncStatusFailed); err != nil {
+				log.Warn().Err(err).Msg(fmt.Sprintf("%s%s", e.Code050D, "02"))
+			}
+
+			return
+		}
+
+		// Change status to complete for that item
+		if err := sqlmodel.AlgoliaSyncStatusUpdate(db, item.ID,
+			model.AlgoliaSyncStatusComplete); err != nil {
+			log.Warn().Err(err).Msg(fmt.Sprintf("%s%s", e.Code050D, "03"))
+		}
+	}(item)
+
+	wg.Wait()
+
+	return nil
+}
+
 // algoliaSyncGet performs select that pushes directly to algolia
 func algoliaSyncGet(db *sql.Connection, p *AlgoliaSyncGetParam,
 	alg *Algolia) (err error) {
 	fields := `algolia_sync_id, algolia_sync_index, algolia_sync_object_id, algolia_sync_item_id, 
-		algolia_sync_item, algolia_sync_item_hash, algolia_sync_status, 
+		algolia_sync_item, algolia_sync_item_hash, algolia_sync_status, algolia_sync_item_delete,
 		created_on, updated_on`
 
 	sb := db.Select("{fields}").
@@ -90,11 +121,15 @@ func algoliaSyncGet(db *sql.Connection, p *AlgoliaSyncGetParam,
 	for rows.Next() {
 		as := &model.AlgoliaSync{}
 		if err := rows.Scan(&as.ID, &as.AlgoliaIndex, &as.AlgoliaObjectID, &as.ItemID, &as.Item,
-			&as.ItemHash, &as.Status, &as.CreatedOn, &as.UpdatedOn); err != nil {
+			&as.ItemHash, &as.Status, &as.ForDelete, &as.CreatedOn, &as.UpdatedOn); err != nil {
 			return e.Wrap(err, e.Code050A, "02")
 		}
 
-		pushItemToAlgolia(db, as, alg)
+		if as.ForDelete {
+			deleteItemFromAlgolia(db, as, alg)
+		} else {
+			pushItemToAlgolia(db, as, alg)
+		}
 	}
 
 	return nil

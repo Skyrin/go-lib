@@ -18,9 +18,10 @@ CREATE TABLE IF NOT EXISTS algolia_sync (
 	algolia_sync_item TEXT NOT NULL, -- Object to push to algolia
 	algolia_sync_item_hash TEXT NOT NULL,	
     algolia_sync_status algolia_sync_status NOT NULL DEFAULT 'pending',
+	algolia_sync_item_delete bool DEFAULT FALSE,
 	created_on TIMESTAMP NOT NULL,
 	updated_on TIMESTAMP NOT NULL,
-	CONSTRAINT algolia_sync_index__objecct_id__ukey UNIQUE (algolia_sync_index, algolia_sync_object_id)
+	CONSTRAINT algolia_sync_index__object_id__ukey UNIQUE (algolia_sync_index, algolia_sync_object_id)
 );
 
 COMMIT;

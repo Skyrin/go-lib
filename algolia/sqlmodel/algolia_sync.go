@@ -24,6 +24,7 @@ type AlgoliaSyncGetParam struct {
 	ItemID                 *int
 	Status                 *[]string
 	AlgoliaIndex           *string
+	ForDelete              *bool
 	FlagCount              bool
 	FlagForUpdate          bool
 	OrderByID              string
@@ -39,7 +40,7 @@ func AlgoliaSyncUpsert(db *sql.Connection, input *model.AlgoliaSync) (id int, er
 		Values(input.AlgoliaIndex, input.AlgoliaObjectID, input.ItemID, input.Item,
 			input.ItemHash, input.Status,
 			"now()", "now()").
-		Suffix(`ON CONFLICT (algolia_sync_object_id) DO UPDATE
+		Suffix(`ON CONFLICT (algolia_sync_index, algolia_sync_object_id) DO UPDATE
 			SET algolia_sync_item_id=excluded.algolia_sync_item_id, 
 			algolia_sync_item=excluded.algolia_sync_item,
 			algolia_sync_item_hash=excluded.algolia_sync_item_hash,
@@ -69,11 +70,29 @@ func AlgoliaSyncStatusUpdate(db *sql.Connection, id int, status string) (err err
 	return nil
 }
 
+// AlgoliaSyncForDeleteUpdate updates the delete flag
+func AlgoliaSyncForDeleteUpdate(db *sql.Connection, id int, delete bool) (err error) {
+	ub := db.Update(AlgoliaSyncTableName).
+		Where("algolia_sync_id=?", id).
+		Set("algolia_sync_item_delete", delete).
+		Set("updated_on", "now()")
+
+	if delete {
+		ub = ub.Set("algolia_sync_status", model.AlgoliaSyncStatusPending)
+	}
+
+	if err := db.ExecUpdate(ub); err != nil {
+		return e.Wrap(err, e.Code050C, "01")
+	}
+
+	return nil
+}
+
 // AlgoliaSyncGet performs select
 func AlgoliaSyncGet(db *sql.Connection,
 	p *AlgoliaSyncGetParam) (asList []*model.AlgoliaSync, count int, err error) {
 	fields := `algolia_sync_id, algolia_sync_index, algolia_sync_object_id, algolia_sync_item_id, 
-		algolia_sync_item, algolia_sync_item_hash, algolia_sync_status, 
+		algolia_sync_item, algolia_sync_item_hash, algolia_sync_status, algolia_sync_item_delete,
 		created_on, updated_on`
 
 	sb := db.Select("{fields}").
@@ -105,6 +124,10 @@ func AlgoliaSyncGet(db *sql.Connection,
 
 	if p.Status != nil && len(*p.Status) > 0 {
 		sb = sb.Where("algolia_sync_status = ANY(?)", pq.Array(*p.Status))
+	}
+
+	if p.ForDelete != nil {
+		sb = sb.Where("algolia_sync_item_delete=?", *p.ForDelete)
 	}
 
 	stmt, bindList, err := sb.ToSql()
@@ -144,7 +167,7 @@ func AlgoliaSyncGet(db *sql.Connection,
 	for rows.Next() {
 		as := &model.AlgoliaSync{}
 		if err := rows.Scan(&as.ID, &as.AlgoliaIndex, &as.AlgoliaObjectID, &as.ItemID, &as.Item,
-			&as.ItemHash, &as.Status, &as.CreatedOn, &as.UpdatedOn); err != nil {
+			&as.ItemHash, &as.Status, &as.ForDelete, &as.CreatedOn, &as.UpdatedOn); err != nil {
 			return nil, 0, e.Wrap(err, e.Code0503, "04")
 		}
 

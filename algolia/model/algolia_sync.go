@@ -19,6 +19,7 @@ type AlgoliaSync struct {
 	Item            []byte
 	ItemHash        string
 	Status          string
+	ForDelete       bool
 	CreatedOn       string
 	UpdatedOn       string
 }
