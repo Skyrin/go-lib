@@ -93,4 +93,15 @@ const (
 	//package: algolia
 	Code0501 = "0501"
 	Code0502 = "0502"
+	Code0503 = "0503"
+	Code0504 = "0504"
+	Code0505 = "0505"
+	Code0506 = "0506"
+	Code0507 = "0507"
+	Code0508 = "0508"
+	Code0509 = "0509"
+	Code050A = "050A"
+	Code050B = "050B"
+	Code050C = "050C"
+	Code050D = "050D"
 )
