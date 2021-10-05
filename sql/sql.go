@@ -1,6 +1,7 @@
 package sql
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -23,26 +24,31 @@ import (
 type Connection struct {
 	DB   *sql.DB
 	Slug *Slug
-	txn  *sql.Tx
+	// TODO: use *Txn for error handling
+	txn *sql.Tx
 	// TODO: support nested transactions
+	txnIdx int
 }
 
 // ConnParam connection parameters used to initialize a connection
 type ConnParam struct {
-	Host           string
-	Port           string
-	User           string
-	Password       string
-	DBName         string
-	SSLMode        string
-	SearchPath     string
-	MigratePath    string
-	MigrationTable string
+	Host       string `json:"host"`
+	Port       string `json:"port"`
+	User       string `json:"user"`
+	Password   string `json:"password"`
+	DBName     string `json:"dbname"`
+	SSLMode    string `json:"sslmode"`
+	SearchPath string `json:"searchpath"`
 }
 
 // GetConnParamFromENV initializes new connection parameters and populates from ENV variables
 func GetConnParamFromENV() (cp *ConnParam) {
 	cp = &ConnParam{}
+
+	if os.Getenv("DBCONFIGPATH") != "" {
+		cp, _ = GetConnParamFromJSONConfig(os.Getenv("DBCONFIGPATH"))
+		return cp
+	}
 
 	if os.Getenv("DBHOST") != "" {
 		cp.Host = os.Getenv("DBHOST")
@@ -65,11 +71,32 @@ func GetConnParamFromENV() (cp *ConnParam) {
 	if os.Getenv("DBSEARCHPATH") != "" {
 		cp.SearchPath = fmt.Sprintf("search_path=%s", os.Getenv("DBSEARCHPATH"))
 	}
-	if os.Getenv("DBMIGRATEPATH") != "" {
-		cp.MigratePath = os.Getenv("DBMIGRATEPATH")
-	}
 
 	return cp
+}
+
+// GetConnParamFromJSONConfig get connection params from a JSON config
+func GetConnParamFromJSONConfig(configPath string) (cp *ConnParam, err error) {
+	cp = &ConnParam{}
+
+	b, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil, e.Wrap(err, e.Code020O, "01", err.Error(), configPath)
+	}
+
+	if err := json.Unmarshal(b, cp); err != nil {
+		return nil, e.Wrap(err, e.Code020O, "02", err.Error())
+	}
+
+	if cp.SSLMode != "" {
+		cp.SSLMode = fmt.Sprintf("sslmode=%s", cp.SSLMode)
+	}
+
+	if cp.SearchPath != "" {
+		cp.SearchPath = fmt.Sprintf("search_path=%s", cp.SearchPath)
+	}
+
+	return cp, nil
 }
 
 // GetConnectionStr returns a connection string
@@ -131,12 +158,46 @@ func (c *Connection) Txn() *sql.Tx {
 	return c.txn
 }
 
+// BeginUseDefaultTxn begins a txn, storing it in the txn property
+// If txn is not nil (already in a txn), it will return an error
+func (c *Connection) BeginUseDefaultTxn() (err error) {
+	if c.txn != nil {
+		return e.Wrap(nil, e.Code020N, "01")
+	}
+	c.txn, err = c.DB.Begin()
+	if err != nil {
+		return e.Wrap(err, e.Code020N, "02")
+	}
+
+	return nil
+}
+
+// BeginReturnDB begins a new transaction, returning a copy of
+// the database connection with the txn already set. This copy
+// should be used to call all txn commands and then discarded.
+func (c *Connection) BeginReturnDB() (db *Connection, err error) {
+	txn, err := c.DB.Begin()
+	if err != nil {
+		return nil, e.Wrap(err, e.Code020H, "01")
+	}
+
+	c.txnIdx = c.txnIdx + 1
+
+	return &Connection{
+		DB:     c.DB,
+		Slug:   c.Slug,
+		txn:    txn,
+		txnIdx: c.txnIdx,
+	}, nil
+}
+
 // Begin wrapper for sql.Begin. It doesn't return the txn object, but stores
 // it internally and it will be used automatically for subsequent query/exec/select
-// calls until commit/rollback is called
+// calls until commit/rollback is called. This is not thread safe and shouldn't be
+// called within a go routine
 func (c *Connection) Begin() (err error) {
 	if c.txn != nil {
-		return e.WrapWithMsg(nil, e.Code0202, "01", "not in a txn")
+		return e.WrapWithMsg(nil, e.Code0202, "01", "in a txn")
 	}
 	c.txn, err = c.DB.Begin()
 	if err != nil {
@@ -202,7 +263,7 @@ func (c *Connection) Query(query string, args ...interface{}) (rows *Rows, err e
 			return nil, e.Wrap(err, e.Code0204, "01", fmt.Sprintf("query: %s\n", query))
 		}
 		return &Rows{
-			rows: sqlRows,
+			rows:  sqlRows,
 			query: query,
 		}, nil
 	}
@@ -215,7 +276,7 @@ func (c *Connection) Query(query string, args ...interface{}) (rows *Rows, err e
 	}
 
 	return &Rows{
-		rows: sqlRows,
+		rows:  sqlRows,
 		query: query,
 	}, nil
 }
@@ -292,7 +353,7 @@ func (c *Connection) ToSQLAndQuery(sb sq.SelectBuilder) (rows *Rows, err error) 
 	}
 
 	return &Rows{
-		rows: sqlRows,
+		rows:  sqlRows,
 		query: stmt,
 	}, nil
 }
@@ -376,7 +437,8 @@ func (c *Connection) ExecInsertReturningID(ib sq.InsertBuilder) (id int, err err
 	if err := c.QueryRow(stmt, bindList...).Scan(&id); err != nil {
 		// Not logging args because it may contain sensitive information. The
 		// caller can log them if needed
-		return 0, e.Wrap(err, e.Code020B, "02", fmt.Sprintf("stmt: %s\n", stmt))
+		// The "query" is logged in Scan, so no need to add here
+		return 0, e.Wrap(err, e.Code020B, "02")
 	}
 
 	return id, nil
