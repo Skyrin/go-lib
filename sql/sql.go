@@ -24,10 +24,9 @@ import (
 type Connection struct {
 	DB   *sql.DB
 	Slug *Slug
-	// TODO: use *Txn for error handling
-	txn *sql.Tx
-	// TODO: support nested transactions
+	txn *Txn
 	txnIdx int
+	// TODO: Keep a pool of Connection objects for reuse?
 }
 
 // ConnParam connection parameters used to initialize a connection
@@ -155,7 +154,11 @@ func NewPostgresConn(cp *ConnParam) (conn *Connection, err error) {
 
 // Txn returns the underlying transaction, if currently in one
 func (c *Connection) Txn() *sql.Tx {
-	return c.txn
+	if c.txn != nil {
+		return c.txn.txn
+	}
+
+	return nil
 }
 
 // BeginUseDefaultTxn begins a txn, storing it in the txn property
@@ -164,9 +167,13 @@ func (c *Connection) BeginUseDefaultTxn() (err error) {
 	if c.txn != nil {
 		return e.Wrap(nil, e.Code020N, "01")
 	}
-	c.txn, err = c.DB.Begin()
+	txn, err := c.DB.Begin()
 	if err != nil {
 		return e.Wrap(err, e.Code020N, "02")
+	}
+
+	c.txn = &Txn{
+		txn: txn,
 	}
 
 	return nil
@@ -184,9 +191,11 @@ func (c *Connection) BeginReturnDB() (db *Connection, err error) {
 	c.txnIdx = c.txnIdx + 1
 
 	return &Connection{
-		DB:     c.DB,
-		Slug:   c.Slug,
-		txn:    txn,
+		DB:   c.DB,
+		Slug: c.Slug,
+		txn: &Txn{
+			txn: txn,
+		},
 		txnIdx: c.txnIdx,
 	}, nil
 }
@@ -199,9 +208,13 @@ func (c *Connection) Begin() (err error) {
 	if c.txn != nil {
 		return e.WrapWithMsg(nil, e.Code0202, "01", "in a txn")
 	}
-	c.txn, err = c.DB.Begin()
+	txn, err := c.DB.Begin()
 	if err != nil {
 		return e.Wrap(err, e.Code0202, "02")
+	}
+
+	c.txn = &Txn{
+		txn: txn,
 	}
 
 	return nil
@@ -256,16 +269,13 @@ func (c *Connection) Rollback() {
 // Query wrapper for sql.Query with automatic txn handling
 func (c *Connection) Query(query string, args ...interface{}) (rows *Rows, err error) {
 	if c.txn != nil {
-		sqlRows, err := c.txn.Query(query, args...)
+		rows, err := c.txn.Query(query, args...)
 		if err != nil {
 			// Not logging args because it may contain sensitive information. The
 			// caller can log them if needed
 			return nil, e.Wrap(err, e.Code0204, "01", fmt.Sprintf("query: %s\n", query))
 		}
-		return &Rows{
-			rows:  sqlRows,
-			query: query,
-		}, nil
+		return rows, nil
 	}
 
 	sqlRows, err := c.DB.Query(query, args...)
@@ -299,10 +309,7 @@ func (c *Connection) Exec(query string, args ...interface{}) (res sql.Result, er
 // QueryRow wrapper for sql.QueryRow with automatic txn handling
 func (c *Connection) QueryRow(query string, args ...interface{}) (rows *Row) {
 	if c.txn != nil {
-		return &Row{
-			row:   c.txn.QueryRow(query, args...),
-			query: query,
-		}
+		return c.txn.QueryRow(query, args...)
 	}
 	return &Row{
 		row:   c.DB.QueryRow(query, args...),
