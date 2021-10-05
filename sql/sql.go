@@ -22,9 +22,9 @@ import (
 // call outside of the txn is needed, the DB property can be accessed directly and
 // used to make a query/exec/select call.
 type Connection struct {
-	DB   *sql.DB
-	Slug *Slug
-	txn *Txn
+	DB     *sql.DB
+	Slug   *Slug
+	txn    *Txn
 	txnIdx int
 	// TODO: Keep a pool of Connection objects for reuse?
 }
