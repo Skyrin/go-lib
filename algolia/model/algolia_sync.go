@@ -16,6 +16,7 @@ type AlgoliaSync struct {
 	AlgoliaIndex    string
 	AlgoliaObjectID string
 	ItemID          int
+	ItemType        string
 	Item            []byte
 	ItemHash        string
 	Status          string

@@ -64,14 +64,8 @@ func (alg *Algolia) Delete(objectID string) (err error) {
 }
 
 // Sync process to send all 'pending' and 'failed' records to algolia
-func (alg *Algolia) Sync(db *sql.Connection) (err error) {
+func (alg *Algolia) Sync(db *sql.Connection, f func(db *sql.Connection, item1 *model.AlgoliaSync) error) (err error) {
 	var wg sync.WaitGroup
-
-	// Begin a transaction
-	if err := db.Begin(); err != nil {
-		return e.Wrap(err, e.Code0509, "03")
-	}
-	defer db.RollbackIfInTxn()
 
 	// Get all items that are pending to be synced to algolia
 	p := &sqlmodel.AlgoliaSyncGetParam{
@@ -81,7 +75,7 @@ func (alg *Algolia) Sync(db *sql.Connection) (err error) {
 			go func(item *model.AlgoliaSync) {
 				defer wg.Done()
 
-				if err := alg.syncItem(db, item); err != nil {
+				if err := f(db, item); err != nil {
 					log.Warn().Err(err).Msg(fmt.Sprintf("%s%s", e.Code0509, "01"))
 				}
 			}(as)
@@ -96,16 +90,11 @@ func (alg *Algolia) Sync(db *sql.Connection) (err error) {
 
 	wg.Wait()
 
-	// Commit
-	if err := db.Commit(); err != nil {
-		return e.Wrap(err, e.Code0509, "04")
-	}
-
 	return nil
 }
 
 // syncItem sync an item to algolia
-func (alg *Algolia) syncItem(db *sql.Connection, item *model.AlgoliaSync) (err error) {
+func (alg *Algolia) SyncItem(db *sql.Connection, item *model.AlgoliaSync) (err error) {
 	// TODO: set the index based on the item (may need to configure/initialize
 	// all indexes as part of the new client)
 	if item.ForDelete {
