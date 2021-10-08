@@ -203,11 +203,14 @@ func AlgoliaSyncGetByStatus(db *sql.Connection, status []string, limit *uint64) 
 }
 
 // AlgoliaSyncGetByItemID searches by the item id
-func AlgoliaSyncGetByItemID(db *sql.Connection, itemID int) (as *model.AlgoliaSync, err error) {
+func AlgoliaSyncGetByItemIDAndType(db *sql.Connection, itemID int, 
+	itemType string) (as *model.AlgoliaSync, err error) {
+
 	limit := uint64(1)
 	p := &AlgoliaSyncGetParam{
 		Limit:  &limit,
 		ItemID: &itemID,
+		ItemType: &itemType,
 	}
 
 	asList, _, err := AlgoliaSyncGet(db, p)
