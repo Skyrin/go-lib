@@ -71,16 +71,18 @@ func (alg *Algolia) Sync(db *sql.Connection, f func(db *sql.Connection, item1 *m
 	p := &sqlmodel.AlgoliaSyncGetParam{
 		Status: &[]string{model.AlgoliaSyncStatusPending, model.AlgoliaSyncStatusFailed},
 		DataHandler: func(as *model.AlgoliaSync) error {
+			var goErr error
+
 			wg.Add(1)
 			go func(item *model.AlgoliaSync) {
 				defer wg.Done()
 
 				if err := f(db, item); err != nil {
-					log.Warn().Err(err).Msg(fmt.Sprintf("%s%s", e.Code0509, "01"))
+					goErr = e.Wrap(err, e.Code0509, "01")
 				}
 			}(as)
 
-			return nil
+			return goErr
 		},
 	}
 
