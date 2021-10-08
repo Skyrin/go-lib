@@ -22,6 +22,7 @@ type AlgoliaSyncGetParam struct {
 	ID                     *int
 	AlgoliaObjectID        *string
 	ItemID                 *int
+	ItemType               *string
 	Status                 *[]string
 	AlgoliaIndex           *string
 	ForDelete              *bool
@@ -36,16 +37,17 @@ type AlgoliaSyncGetParam struct {
 func AlgoliaSyncUpsert(db *sql.Connection, input *model.AlgoliaSync) (id int, err error) {
 	ib := db.Insert(AlgoliaSyncTableName).
 		Columns(`algolia_sync_index, algolia_sync_object_id, algolia_sync_item_id, algolia_sync_item, 
-			algolia_sync_item_hash, algolia_sync_status, 
+			algolia_sync_item_hash, algolia_sync_status, algolia_sync_item_type,
 			created_on, updated_on`).
 		Values(input.AlgoliaIndex, input.AlgoliaObjectID, input.ItemID, input.Item,
-			input.ItemHash, input.Status,
+			input.ItemHash, input.Status, input.ItemType,
 			"now()", "now()").
 		Suffix(`ON CONFLICT (algolia_sync_index, algolia_sync_object_id) DO UPDATE
 			SET algolia_sync_item_id=excluded.algolia_sync_item_id, 
 			algolia_sync_item=excluded.algolia_sync_item,
 			algolia_sync_item_hash=excluded.algolia_sync_item_hash,
 			algolia_sync_status=excluded.algolia_sync_status,
+			algolia_sync_item_type=excluded.algolia_sync_item_type,
 			updated_on=now()
 			RETURNING algolia_sync_id`)
 
@@ -94,7 +96,7 @@ func AlgoliaSyncGet(db *sql.Connection,
 	p *AlgoliaSyncGetParam) (asList []*model.AlgoliaSync, count int, err error) {
 	fields := `algolia_sync_id, algolia_sync_index, algolia_sync_object_id, algolia_sync_item_id, 
 		algolia_sync_item, algolia_sync_item_hash, algolia_sync_status, algolia_sync_item_delete,
-		created_on, updated_on`
+		algolia_sync_item_type, created_on, updated_on`
 
 	sb := db.Select("{fields}").
 		From(AlgoliaSyncTableName)
@@ -121,6 +123,10 @@ func AlgoliaSyncGet(db *sql.Connection,
 
 	if p.AlgoliaIndex != nil && len(*p.AlgoliaIndex) > 0 {
 		sb = sb.Where("algolia_sync_index=?", *p.AlgoliaIndex)
+	}
+
+	if p.ItemType != nil && len(*p.ItemType) > 0 {
+		sb = sb.Where("algolia_sync_item_type=?", *p.ItemType)
 	}
 
 	if p.Status != nil && len(*p.Status) > 0 {
@@ -168,7 +174,8 @@ func AlgoliaSyncGet(db *sql.Connection,
 	for rows.Next() {
 		as := &model.AlgoliaSync{}
 		if err := rows.Scan(&as.ID, &as.AlgoliaIndex, &as.AlgoliaObjectID, &as.ItemID, &as.Item,
-			&as.ItemHash, &as.Status, &as.ForDelete, &as.CreatedOn, &as.UpdatedOn); err != nil {
+			&as.ItemHash, &as.Status, &as.ForDelete, &as.ItemType,
+			&as.CreatedOn, &as.UpdatedOn); err != nil {
 			return nil, 0, e.Wrap(err, e.Code0503, "04")
 		}
 
@@ -213,4 +220,38 @@ func AlgoliaSyncGetByItemID(db *sql.Connection, itemID int) (as *model.AlgoliaSy
 	}
 
 	return asList[0], nil
+}
+
+// AlgoliaSyncGetItemIDs Get list of all items IDs
+func AlgoliaSyncGetItemIDs(db *sql.Connection, limit, offset int, status []string) (idList []int, count int, err error) {
+	fields := `algolia_sync_item_id`
+
+	sb := db.Select("{fields}").
+		From(AlgoliaSyncTableName).
+		OrderBy("algolia_sync_item_id asc").
+		Limit(uint64(limit)).
+		Offset(uint64(offset))
+
+	if len(status) > 0 {
+		sb = sb.Where("algolia_sync_status = ANY(?)", pq.Array(status))
+	}
+
+	stmt, bindList, err := sb.ToSql()
+	stmt = strings.Replace(stmt, "{fields}", fields, 1)
+	rows, err := db.Query(stmt, bindList...)
+	if err != nil {
+		return nil, 0, e.Wrap(err, e.Code050E, "01")
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err != nil {
+			return nil, 0, e.Wrap(err, e.Code050E, "02")
+		}
+
+		idList = append(idList, id)
+	}
+
+	return idList, len(idList), nil
 }
