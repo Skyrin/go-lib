@@ -11,7 +11,6 @@ import (
 	"github.com/Skyrin/go-lib/e"
 	"github.com/Skyrin/go-lib/sql"
 	"github.com/algolia/algoliasearch-client-go/v3/algolia/search"
-	"github.com/rs/zerolog/log"
 )
 
 // Algolia handler for pushing index updates to Algolia
