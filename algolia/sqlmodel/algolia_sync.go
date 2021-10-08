@@ -222,8 +222,8 @@ func AlgoliaSyncGetByItemID(db *sql.Connection, itemID int) (as *model.AlgoliaSy
 	return asList[0], nil
 }
 
-// AlgoliaSyncGetAllImageIDs Get list of all image IDs
-func AlgoliaSyncGetAllImageIDs(db *sql.Connection, limit, offset int, status []string) (idList []int, count int, err error) {
+// AlgoliaSyncGetItemIDs Get list of all items IDs
+func AlgoliaSyncGetItemIDs(db *sql.Connection, limit, offset int, status []string) (idList []int, count int, err error) {
 	fields := `algolia_sync_item_id`
 
 	sb := db.Select("{fields}").
