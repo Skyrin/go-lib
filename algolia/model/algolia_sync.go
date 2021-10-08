@@ -26,10 +26,15 @@ type AlgoliaSync struct {
 }
 
 // CreateAlgoliaObjectID returns a string that represents the algolia object id
-// To ensure it is unique we attach a prefix that defines what the object is related to (table name)
-// plus the id from our DB for that object
-func CreateAlgoliaObjectID(prefix string, id int) string {
-	return fmt.Sprintf("%s_%d", prefix, id)
+// Uniqueness comes from the item type/item id combination. If a non-empty string
+// is provided as the prefix, it will be added to the begining of the generated
+// id.
+func CreateAlgoliaObjectID(prefix string, itemType string, id int) string {
+	if prefix != "" {
+		return fmt.Sprintf("%s_%s_%d", prefix, itemType, id)
+	}
+
+	return fmt.Sprintf("%s_%d", itemType, id)
 }
 
 func (ags *AlgoliaSync) MarshalJSON() ([]byte, error) {
