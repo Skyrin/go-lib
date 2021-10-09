@@ -59,12 +59,22 @@ func AlgoliaSyncUpsert(db *sql.Connection, input *model.AlgoliaSync) (id int, er
 	return id, nil
 }
 
-// AlgoliaSyncStatusUpdate updates the status
-func AlgoliaSyncStatusUpdate(db *sql.Connection, id int, status string) (err error) {
+// AlgoliaSyncSetStatus updates the status. If hash or jsonBytes are set, then
+// it will update those as well
+func AlgoliaSyncSetStatus(db *sql.Connection, id int, status string,
+	hash *string, jsonBytes []byte) (err error) {
 	ub := db.Update(AlgoliaSyncTableName).
 		Where("algolia_sync_id=?", id).
 		Set("algolia_sync_status", status).
 		Set("updated_on", "now()")
+
+	if hash != nil {
+		ub = ub.Set("algolia_sync_item_hash", *hash)
+	}
+
+	if jsonBytes != nil {
+		ub = ub.Set("algolia_sync_item", jsonBytes)
+	}
 
 	if err := db.ExecUpdate(ub); err != nil {
 		return e.Wrap(err, e.Code0507, "01")
@@ -203,13 +213,13 @@ func AlgoliaSyncGetByStatus(db *sql.Connection, status []string, limit *uint64) 
 }
 
 // AlgoliaSyncGetByItemID searches by the item id
-func AlgoliaSyncGetByItemIDAndType(db *sql.Connection, itemID int, 
+func AlgoliaSyncGetByItemIDAndType(db *sql.Connection, itemID int,
 	itemType string) (as *model.AlgoliaSync, err error) {
 
 	limit := uint64(1)
 	p := &AlgoliaSyncGetParam{
-		Limit:  &limit,
-		ItemID: &itemID,
+		Limit:    &limit,
+		ItemID:   &itemID,
 		ItemType: &itemType,
 	}
 
