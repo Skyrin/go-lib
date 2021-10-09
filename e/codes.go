@@ -113,4 +113,5 @@ const (
 	Code050C = "050C"
 	Code050D = "050D"
 	Code050E = "050E"
+	Code050F = "050F"
 )
