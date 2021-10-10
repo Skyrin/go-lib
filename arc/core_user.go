@@ -102,7 +102,7 @@ func (c *Client) CoreUserGetByUsername(username string) (au *ArcUser, err error)
 		return nil, e.Wrap(err, e.Code040H, "01")
 	}
 	res, err := c.sendSingleRequestItem(
-		c.deployment.getAPICoreServiceURL(),
+		c.deployment.getManageCoreServiceURL(),
 		ri,
 		ca)
 	if err != nil {
