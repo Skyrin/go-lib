@@ -39,3 +39,8 @@ func IsAnyPQError(err error) bool {
 func IsNoRowsPQError(err error) bool {
 	return ContainsError(err, "sql: no rows in result set")
 }
+
+// IsCouldNotLockPQError whether the error is a pg sql could not obtain lock error
+func IsCouldNotLockPQError(err error) bool {
+	return ContainsError(err, "pq: could not obtain lock on row in relation")
+}
