@@ -25,7 +25,9 @@ func (c *Client) RegisterCartCustomer(storeCode string,
 	rio.Value = map[string]interface{}{}
 	rio.Value["username"] = ci.Username
 	rio.Value["email"] = ci.Email
-	rio.Value["password"] = ci.Password
+	if ci.Password != "" {
+		rio.Value["password"] = ci.Password
+	}
 	rio.Value["firstName"] = ci.FirstName
 	rio.Value["middleName"] = ci.MiddleName
 	rio.Value["lastName"] = ci.LastName
