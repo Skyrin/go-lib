@@ -45,13 +45,13 @@ func (d *Deployment) UpdateGrant(g *Grant) (err error) {
 }
 
 // NewDeployment initializes a new deployment and returns it
-func NewDeployment(db *sql.Connection, deploymentCode string) (d *Deployment, err error) {
+func NewDeployment(db *sql.Connection, cp *sql.ConnParam, deploymentCode string) (d *Deployment, err error) {
 	md, err := sqlmodel.DeploymentGetByCode(db, deploymentCode)
 	if err != nil {
 		return nil, e.Wrap(err, e.Code040J, "01")
 	}
 
-	dn, err := NewDeploymentNotify()
+	dn, err := NewDeploymentNotify(cp)
 	if err != nil {
 		return nil, e.Wrap(err, e.Code040J, "02")
 	}

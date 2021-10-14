@@ -91,7 +91,7 @@ func NewClientFromDeployment(cp *sql.ConnParam,
 		return nil, e.Wrap(err, e.Code0405, "02")
 	}
 
-	deployment, err := NewDeployment(db, deploymentCode)
+	deployment, err := NewDeployment(db, cp, deploymentCode)
 	if err != nil {
 		return nil, e.Wrap(err, e.Code0405, "03")
 	}
