@@ -71,6 +71,17 @@ func (alg *Algolia) Delete(objectID string) (err error) {
 	return nil
 }
 
+// DeleteBy deletes records based on the options, must be valid algolia
+// delete by options. If wait is true, it will wait for the task to complete
+func (alg *Algolia) DeleteBy(opt ...interface{}) (res search.UpdateTaskRes, err error) {
+	res, err = alg.Index.DeleteBy(opt...)
+	if err != nil {
+		return res, e.Wrap(err, e.Code050I, "01")
+	}
+
+	return res, nil
+}
+
 // Sync attempts to send all 'pending' and 'failed' records to algolia
 func (alg *Algolia) Sync(db *sql.Connection, f func(*sql.Connection, *model.AlgoliaSync) error) (err error) {
 	return runSync(db, alg, f)
