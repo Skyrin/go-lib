@@ -22,10 +22,12 @@ import (
 // call outside of the txn is needed, the DB property can be accessed directly and
 // used to make a query/exec/select call.
 type Connection struct {
-	DB     *sql.DB
-	Slug   *Slug
-	txn    *Txn
-	txnIdx int
+	DB        *sql.DB
+	Slug      *Slug
+	txn       *Txn
+	txnIdx    int
+	statusMap map[string][]*Status // Cache of statuses
+	statusLoader func(db *Connection) ([]*Status, error) // Status loader
 	// TODO: Keep a pool of Connection objects for reuse?
 }
 

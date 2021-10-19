@@ -56,6 +56,10 @@ const (
 	Code020M = "020M"
 	Code020N = "020N"
 	Code020O = "020O"
+	Code020P = "020P"
+	Code020Q = "020Q"
+	Code020R = "020R"
+	Code020S = "020S"
 
 	//package: http
 	// Code0301 = "0301"
