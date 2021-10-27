@@ -199,6 +199,8 @@ func (c *Connection) BeginReturnDB() (db *Connection, err error) {
 			txn: txn,
 		},
 		txnIdx: c.txnIdx,
+		statusMap: c.statusMap,
+		statusLoader: c.statusLoader,
 	}, nil
 }
 
