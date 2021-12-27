@@ -17,9 +17,9 @@ const (
 
 // SyncProvider interface for the sync services
 type SyncProvider interface {
-	GetSyncQueueObject(itemID, syncItemID int, syncItemType string) *model.SyncQueue
+	GetSyncQueueObject(itemID int, syncItemType string) *model.SyncQueue
 	HandleItemQueue(db *sql.Connection, item *model.SyncQueue) (err error)
-	SyncItem(db *sql.Connection, so *model.SyncObject) (err error)
+	SyncItem(db *sql.Connection, so *model.SyncQueue) (err error)
 }
 
 type Service struct {

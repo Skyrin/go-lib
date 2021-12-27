@@ -37,21 +37,19 @@ type SyncQueueGetParam struct {
 // SyncQueueUpsert performs the DB operation to upsert a record in the sync_queue table
 func SyncQueueUpsert(db *sql.Connection, input *model.SyncQueue) (id int, err error) {
 	ib := db.Insert(SyncQueueTableName).
-		Columns(`sync_item_id, sync_queue_index, sync_queue_object_id, sync_queue_status,
+		Columns(`sync_queue_index, sync_queue_object_id, sync_queue_status,
 			sync_queue_retries, sync_queue_service, sync_queue_delete, sync_queue_item_type,
+			sync_queue_item_id, sync_queue_item_hash, 
 			created_on, updated_on`).
-		Values(input.SyncItemID, input.Index, input.ObjectID, input.Status,
-			input.Retries, input.Service, input.ForDelete, input.SyncItemType,
+		Values(input.Index, input.ObjectID, input.Status,
+			input.Retries, input.Service, input.ForDelete, input.ItemType,
+			input.ItemID, input.ItemHash,
 			"now()", "now()").
-		Suffix(`ON CONFLICT (sync_queue_index, sync_queue_object_id, sync_queue_service) DO UPDATE
-			SET sync_item_id=excluded.sync_item_id, 
-			sync_queue_index=excluded.sync_queue_index,
-			sync_queue_object_id=excluded.sync_queue_object_id,
+		Suffix(`ON CONFLICT (sync_queue_index, sync_queue_object_id, sync_queue_service) 
+			DO UPDATE
+			SET			
 			sync_queue_status=excluded.sync_queue_status,
-			sync_queue_item_type=excluded.sync_queue_item_type,
 			sync_queue_delete=excluded.sync_queue_delete,
-			sync_queue_retries=excluded.sync_queue_retries,
-			sync_queue_service=excluded.sync_queue_service,			
 			updated_on=now()
 			RETURNING sync_queue_id`)
 
@@ -110,7 +108,7 @@ func SyncQueueForDeleteUpdate(db *sql.Connection, id int, delete bool) (err erro
 	}
 
 	if err := db.ExecUpdate(ub); err != nil {
-		return e.Wrap(err, e.Code0603, "01")
+		return e.Wrap(err, e.Code060I, "01")
 	}
 
 	return nil
@@ -134,12 +132,26 @@ func SyncQueueForDeleteUpdateByItemID(db *sql.Connection, itemID int, delete boo
 	return nil
 }
 
+// SyncQueueSetHash sets the hash for the item to be synced
+func SyncQueueSetHash(db *sql.Connection, id int, hash string) (err error) {
+	ub := db.Update(SyncQueueTableName).
+		Where("sync_queue_id=?", id).
+		Set("sync_queue_item_hash", hash).
+		Set("updated_on", "now()")
+
+	if err := db.ExecUpdate(ub); err != nil {
+		return e.Wrap(err, e.Code060H, "01")
+	}
+
+	return nil
+}
+
 // SyncQueueGet performs select
 func SyncQueueGet(db *sql.Connection,
 	p *SyncQueueGetParam) (sqList []*model.SyncQueue, count int, err error) {
-	fields := `sync_queue_id, sync_item_id, sync_queue_index, sync_queue_object_id, 
+	fields := `sync_queue_id, sync_queue_index, sync_queue_object_id, 
 		sync_queue_status, sync_queue_retries, sync_queue_service, sync_queue_delete,
-		sync_queue_item_type,
+		sync_queue_item_type, sync_queue_item_id, sync_queue_item_hash, 
 		created_on, updated_on`
 
 	sb := db.Select("{fields}").
@@ -158,7 +170,7 @@ func SyncQueueGet(db *sql.Connection,
 	}
 
 	if p.ItemID != nil && *p.ItemID >= 0 {
-		sb = sb.Where("sync_item_id=?", *p.ItemID)
+		sb = sb.Where("sync_queue_item_id=?", *p.ItemID)
 	}
 
 	if p.ObjectID != nil && len(*p.ObjectID) > 0 {
@@ -178,7 +190,7 @@ func SyncQueueGet(db *sql.Connection,
 	}
 
 	if p.ForDelete != nil {
-		sb = sb.Where("sync_item_delete=?", *p.ForDelete)
+		sb = sb.Where("sync_queue_delete=?", *p.ForDelete)
 	}
 
 	stmt, bindList, err := sb.ToSql()
@@ -230,9 +242,9 @@ func SyncQueueGet(db *sql.Connection,
 
 	for rows.Next() {
 		sq := &model.SyncQueue{}
-		if err := rows.Scan(&sq.ID, &sq.SyncItemID, &sq.Index, &sq.ObjectID,
+		if err := rows.Scan(&sq.ID, &sq.Index, &sq.ObjectID,
 			&sq.Status, &sq.Retries, &sq.Service, &sq.ForDelete,
-			&sq.SyncItemType,
+			&sq.ItemType, &sq.ItemID, &sq.ItemHash,
 			&sq.CreatedOn, &sq.UpdatedOn); err != nil {
 			return nil, 0, e.Wrap(err, e.Code0604, "04")
 		}
@@ -250,8 +262,8 @@ func SyncQueueGet(db *sql.Connection,
 }
 
 // SyncQueueGetByStatus returns the items with the specified status for the specified services
-func SyncQueueGetByStatusService(db *sql.Connection, status, service []string, limit *uint64) (sqList []*model.SyncQueue,
-	count int, err error) {
+func SyncQueueGetByStatusService(db *sql.Connection, status, service []string,
+	limit *uint64) (sqList []*model.SyncQueue, count int, err error) {
 	p := &SyncQueueGetParam{
 		Status:  &status,
 		Limit:   limit,
@@ -292,11 +304,11 @@ func SyncQueueGetItemIDsByService(db *sql.Connection, limit, offset int,
 	}
 
 	serviceList := []string{service}
-	fields := `sync_item_id`
+	fields := `sync_queue_item_id`
 
 	sb := db.Select("{fields}").
 		From(SyncQueueTableName).
-		OrderBy("sync_item_id asc").
+		OrderBy("sync_queue_item_id asc").
 		Limit(uint64(limit)).
 		Offset(uint64(offset)).
 		Where("sync_queue_service = ANY(?)", pq.Array(serviceList))

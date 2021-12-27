@@ -15,30 +15,17 @@ func SyncUpsert(db *sql.Connection, itemID int, input []*model.SyncQueue) (err e
 	}
 	defer db.RollbackIfInTxn()
 
-	si := &model.SyncItem{
-		ItemID:   itemID,
-		Item:     nil,
-		ItemHash: "",
-	}
-
-	// Save to the sync_item table
-	syncItemID, err := SyncItemAdd(tx, si)
-	if err != nil {
-		return e.Wrap(err, e.Code060D, "02")
-	}
-
 	for _, i := range input {
-		i.SyncItemID = syncItemID
 		// Save to the sync_queue table for each service
 		_, err = SyncQueueUpsert(tx, i)
 		if err != nil {
-			return e.Wrap(err, e.Code060D, "03")
+			return e.Wrap(err, e.Code060D, "02")
 		}
 	}
 
 	// Commit
 	if err := tx.Commit(); err != nil {
-		return e.Wrap(err, e.Code060D, "04")
+		return e.Wrap(err, e.Code060D, "03")
 	}
 
 	return nil
