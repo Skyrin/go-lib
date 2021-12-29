@@ -19,7 +19,7 @@ const (
 type SyncProvider interface {
 	GetSyncQueueObject(itemID int, syncItemType string) *model.SyncQueue
 	HandleItemQueue(db *sql.Connection, item *model.SyncQueue) (err error)
-	SyncItem(db *sql.Connection, so *model.SyncQueue) (err error)
+	Send(db *sql.Connection, so *model.SyncQueue) (err error)
 }
 
 type Service struct {
@@ -33,7 +33,7 @@ func NewService(p SyncProvider) *Service {
 	}
 }
 
-func (s *Service) SyncQueueItem(db *sql.Connection, serviceName string,
+func (s *Service) Process(db *sql.Connection, serviceName string,
 	maxGoRoutines int) (err error) {
 	count := 0
 	err = s.sync(db, serviceName, maxGoRoutines,
@@ -65,7 +65,7 @@ func (s *Service) sync(db *sql.Connection, serviceName string, maxGoRoutines int
 	return s.runSync(db, serviceName, maxGoRoutines, f)
 }
 
-// runSync attempts to send all 'pending' and 'failed' records to algolia
+// runSync attempts to send all 'pending' and 'failed' records to the service
 func (s *Service) runSync(db *sql.Connection, serviceName string, maxGoRoutines int,
 	f func(*sql.Connection, *model.SyncQueue) error) (err error) {
 
