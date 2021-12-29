@@ -81,6 +81,37 @@ func SyncQueueSetStatus(db *sql.Connection, id int, status string) (err error) {
 	return nil
 }
 
+// SyncQueueSetHash sets the hash for the item to be synced
+func SyncQueueSetHash(db *sql.Connection, id int, hash string) (err error) {
+	ub := db.Update(SyncQueueTableName).
+		Where("sync_queue_id=?", id).
+		Set("sync_queue_item_hash", hash).
+		Set("updated_on", "now()")
+
+	if err := db.ExecUpdate(ub); err != nil {
+		return e.Wrap(err, e.Code060H, "01")
+	}
+
+	return nil
+}
+
+// SyncQueueSetItemHashAndStatus sets the  item, hash for the item, and status to be synced
+func SyncQueueSetItemHashAndStatus(db *sql.Connection, id int,
+	hash, status string, item *[]byte) (err error) {
+	ub := db.Update(SyncQueueTableName).
+		Where("sync_queue_id=?", id).
+		Set("sync_queue_item_hash", hash).
+		Set("sync_queue_item", item).
+		Set("sync_queue_status", status).
+		Set("updated_on", "now()")
+
+	if err := db.ExecUpdate(ub); err != nil {
+		return e.Wrap(err, e.Code060H, "01")
+	}
+
+	return nil
+}
+
 // SyncQueueSetError set error for sync
 func SyncQueueSetError(db *sql.Connection, id int, msg string) (err error) {
 	ub := db.Update(SyncQueueTableName).
@@ -131,20 +162,6 @@ func SyncQueueSetDeleteByServiceItemTypeAndItemID(db *sql.Connection, itemID int
 
 	if err := db.ExecUpdate(ub); err != nil {
 		return e.Wrap(err, e.Code0603, "01")
-	}
-
-	return nil
-}
-
-// SyncQueueSetHash sets the hash for the item to be synced
-func SyncQueueSetHash(db *sql.Connection, id int, hash string) (err error) {
-	ub := db.Update(SyncQueueTableName).
-		Where("sync_queue_id=?", id).
-		Set("sync_queue_item_hash", hash).
-		Set("updated_on", "now()")
-
-	if err := db.ExecUpdate(ub); err != nil {
-		return e.Wrap(err, e.Code060H, "01")
 	}
 
 	return nil
