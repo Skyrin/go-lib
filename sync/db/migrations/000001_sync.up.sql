@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS sync_queue (
 	sync_queue_item_type TEXT NOT NULL,
 	created_on TIMESTAMP NOT NULL,
 	updated_on TIMESTAMP NOT NULL,
-	CONSTRAINT sync_queue_index__object_id__service__ukey 
+	CONSTRAINT sync_queue_service__item_type__item_id__ukey 
 		UNIQUE (sync_queue_service, sync_queue_item_type, sync_queue_item_id)
 );
 

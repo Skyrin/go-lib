@@ -15,19 +15,19 @@ const (
 	DefaultMaxNumGoRoutines = 25
 )
 
-// SyncProvider interface for the sync services
-type SyncProvider interface {
+// Provider interface for the sync services
+type Provider interface {
 	GetSyncQueueObject(itemID int, syncItemType string) *model.SyncQueue
 	HandleItemQueue(db *sql.Connection, item *model.SyncQueue) (err error)
 	Send(db *sql.Connection, so *model.SyncQueue) (err error)
 }
 
 type Service struct {
-	syncProvider SyncProvider
+	syncProvider Provider
 }
 
 // NewService returns an instance of a service provider
-func NewService(p SyncProvider) *Service {
+func NewService(p Provider) *Service {
 	return &Service{
 		syncProvider: p,
 	}

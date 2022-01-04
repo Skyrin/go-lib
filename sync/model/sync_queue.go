@@ -9,8 +9,6 @@ const (
 // SyncQueue model
 type SyncQueue struct {
 	ID        int
-	Index     string
-	ObjectID  string
 	ItemID    int
 	Item      *[]byte
 	ItemHash  string

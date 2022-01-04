@@ -18,7 +18,7 @@ func SyncUpsert(db *sql.Connection, itemID int, input []*model.SyncQueue) (err e
 
 	for _, i := range input {
 		// Save to the sync_queue table for each service
-		_, err = sqlmodel.SyncQueueUpsert(tx, i)
+		_, err = sqlmodel.Upsert(tx, i)
 		if err != nil {
 			return e.Wrap(err, e.Code060D, "02")
 		}

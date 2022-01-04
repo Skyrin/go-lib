@@ -33,8 +33,8 @@ type SyncQueueGetParam struct {
 	DataHandler      func(*model.SyncQueue) error
 }
 
-// SyncQueueUpsert performs the DB operation to upsert a record in the sync_queue table
-func SyncQueueUpsert(db *sql.Connection, input *model.SyncQueue) (id int, err error) {
+// Upsert performs the DB operation to upsert a record in the sync_queue table
+func Upsert(db *sql.Connection, input *model.SyncQueue) (id int, err error) {
 	ib := db.Insert(SyncQueueTableName).
 		Columns(`sync_queue_status, sync_queue_item,
 			sync_queue_retries, sync_queue_service, sync_queue_delete, sync_queue_item_type,
@@ -308,7 +308,7 @@ func SyncQueueGetByItemIDTypeAndService(db *sql.Connection, itemID int,
 	}
 
 	if len(sqList) == 0 {
-		return nil, e.Wrap(fmt.Errorf("no items found"), e.Code0605, "02")
+		return nil, e.New(e.Code0605, "02", "no items found")
 	}
 
 	return sqList[0], nil
