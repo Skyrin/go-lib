@@ -41,6 +41,10 @@ func (f *File) GetVersionFromName() (v int, err error) {
 		return 0, e.WrapWithMsg(nil, e.Code0001, "01", e.MsgMigrationFileNameInvalid)
 	}
 
+	if len(sList) == 1 {
+		sList = strings.Split(f.Name, ".")
+	}
+
 	v, err = strconv.Atoi(sList[0])
 	if err != nil {
 		return 0, e.WrapWithMsg(err, e.Code0001, "02", e.MsgMigrationFileNameInvalid)

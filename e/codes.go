@@ -101,6 +101,10 @@ const (
 	Code040Y = "040Y"
 	Code040Z = "040Z"
 	Code0410 = "0410"
+	Code0411 = "0411"
+	Code0412 = "0412"
+	Code0413 = "0413"
+	Code0414 = "0414"
 
 	//package: algolia
 	Code0501 = "0501"
