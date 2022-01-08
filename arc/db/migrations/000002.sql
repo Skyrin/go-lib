@@ -18,7 +18,8 @@ END$$;
 
 DO $$ BEGIN
 	CREATE TYPE arc_data_type AS ENUM (
-		'category', 'customer', 'product', 'rental-asset', 'user'
+		'category', 'customer', 'order', 'product', 'purchase',
+		'rental-asset', 'user'
 	);
 	EXCEPTION
 	WHEN duplicate_object THEN null;

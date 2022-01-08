@@ -73,7 +73,7 @@ func DataUpsert(db *sql.Connection, d *model.Data) (err error) {
 
 	err = db.ExecInsert(ib)
 	if err != nil {
-		return e.Wrap(err, e.Code0411, "02")
+		return e.Wrap(err, e.Code0411, "01")
 	}
 
 	return nil

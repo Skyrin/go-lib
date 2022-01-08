@@ -8,7 +8,6 @@ import (
 	"github.com/Skyrin/go-lib/arc/model"
 	"github.com/Skyrin/go-lib/arc/sqlmodel"
 	"github.com/Skyrin/go-lib/sql"
-	"github.com/rs/zerolog/log"
 )
 
 // HTTPDataHandler handler for deployment data events
@@ -45,11 +44,18 @@ func (hdh *HTTPDataHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := sqlmodel.DataUpsert(hdh.db, d); err != nil {
-
-		hdh.err(w, err, err.Error(), http.StatusBadRequest)
+	if !d.IsValidAppCode() {
+		hdh.err(w, nil, "invalid app code specified", http.StatusBadRequest)
 		return
 	}
 
-	log.Info().Msgf("%s", d.Object)
+	if !d.IsValidType() {
+		hdh.err(w, nil, "invalid type specified", http.StatusBadRequest)
+		return
+	}
+
+	if err := sqlmodel.DataUpsert(hdh.db, d); err != nil {
+		hdh.err(w, err, "failed to upsert record", http.StatusBadRequest)
+		return
+	}
 }
