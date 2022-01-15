@@ -134,3 +134,46 @@ func (dh *DataHandler) Publish(r *http.Request) (msg string, code int, err error
 
 	return "", http.StatusOK, nil
 }
+
+// DataProcessor reads all pending records in the arc_data table and
+// calls the app specific function to process it, then marks them all
+// as processed.
+type DataProcessor struct {
+	db     *sql.Connection
+	handle func(*model.Data) error
+}
+
+// NewDataProcess returns a new instance of a data processor
+func NewDataProcessor(db *sql.Connection, f func(*model.Data) error) (dp *DataProcessor) {
+	return &DataProcessor{
+		db:     db,
+		handle: f,
+	}
+}
+
+// Run iterates through all pending records in the arc_data table and calls
+// the passed data handling function. Then marks all of the read records
+// as processed.
+func (dp *DataProcessor) Run() (err error) {
+	// Mark all pending records as processing
+	if err := sqlmodel.DataSetStatusProcessing(dp.db); err != nil {
+		return e.Wrap(err, e.Code0416, "01")
+	}
+
+	// Iterate through all records in the processing status
+	s := model.DataStatusProcessing
+	_, _, err = sqlmodel.DataGet(dp.db, &sqlmodel.DataGetParam{
+		Status: &s,
+		Handle: dp.handle,
+	})
+	if err != nil {
+		return e.Wrap(err, e.Code0416, "03")
+	}
+
+	// Mark all processing records as processed
+	if err := sqlmodel.DataSetStatusProcessed(dp.db); err != nil {
+		return e.Wrap(err, e.Code0416, "01")
+	}
+
+	return nil
+}

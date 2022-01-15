@@ -60,6 +60,8 @@ const (
 	Code020Q = "020Q"
 	Code020R = "020R"
 	Code020S = "020S"
+	Code020T = "020T"
+	Code020U = "020U"
 
 	//package: http
 	// Code0301 = "0301"
@@ -106,6 +108,7 @@ const (
 	Code0413 = "0413"
 	Code0414 = "0414"
 	Code0415 = "0415"
+	Code0416 = "0416"
 
 	//package: algolia
 	Code0501 = "0501"
@@ -126,4 +129,18 @@ const (
 	Code050G = "050G"
 	Code050H = "050H"
 	Code050I = "050I"
+
+	// package: process*
+	Code0601 = "0601"
+	Code0602 = "0602"
+	Code0603 = "0603"
+	Code0604 = "0604"
+	Code0605 = "0605"
+	Code0606 = "0606"
+	Code0607 = "0607"
+	Code0608 = "0608"
+	Code0609 = "0609"
+	Code060A = "060A"
+	Code060B = "060B"
+	Code060C = "060C"
 )

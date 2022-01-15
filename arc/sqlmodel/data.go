@@ -25,17 +25,18 @@ type DataGetParam struct {
 	Status    *model.DataStatus
 	FlagCount bool
 	OrderBy   string
+	Handle    func(*model.Data) error
 }
 
 // DataSetStatus set the status for the specified data record
 func DataSetStatus(db *sql.Connection, s model.DataStatus, d *model.Data) (err error) {
 	ub := db.Update(DataTableName).
-		Set("arc_data_status=?", s).
-		Set("updated_on=?", "now()").
-		Where("arc_app_code", d.AppCode).
-		Where("arc_app_core_id", d.AppCoreID).
-		Where("arc_data_type", d.Type).
-		Where("arc_data_object_id", d.ObjectID)
+		Set("arc_data_status", s).
+		Set("updated_on", "now()").
+		Where("arc_app_code=?", d.AppCode).
+		Where("arc_app_core_id=?", d.AppCoreID).
+		Where("arc_data_type=?", d.Type).
+		Where("arc_data_object_id=?", d.ObjectID)
 
 	err = db.ExecUpdate(ub)
 	if err != nil {
@@ -51,14 +52,15 @@ func DataSetStatus(db *sql.Connection, s model.DataStatus, d *model.Data) (err e
 // status to pending in this scenario
 func DataUpsert(db *sql.Connection, d *model.Data) (err error) {
 	// Calculate the hash
-	d.Hash = sha512.Sum512_256(d.Object)
+	hash := sha512.Sum512_256(d.Object)
+	d.Hash = hash[:]
 
 	ib := db.Insert(DataTableName).Columns(`
 			arc_app_code,arc_app_core_id,arc_data_type,arc_data_object_id,
 			arc_data_status,arc_data_object,arc_data_hash,arc_data_deleted,
 			created_on,updated_on`).
 		Values(d.AppCode, d.AppCoreID, d.Type, d.ObjectID,
-			model.DataStatusPending, d.Object, d.Hash[:], d.Deleted,
+			model.DataStatusPending, d.Object, d.Hash, d.Deleted,
 			"now()", "now()").
 		Suffix(`ON CONFLICT
 			(arc_app_code,arc_app_core_id,arc_data_type,arc_data_object_id)
@@ -83,8 +85,8 @@ func DataUpsert(db *sql.Connection, d *model.Data) (err error) {
 func DataGet(db *sql.Connection,
 	p *DataGetParam) (dList []*model.Data, count int, err error) {
 
-	fields := `arc_app_code,arc_app_core_id,arc_data_type,arc_data_object_id
-	arc_data_status,arc_data_object,arc_data_hash,arc_data_deleted,
+	fields := `arc_app_code,arc_app_core_id,arc_data_type,arc_data_object_id,
+	arc_data_object,arc_data_hash,arc_data_deleted,arc_data_status,
 	created_on,updated_on`
 
 	sb := db.Select("{fields}").
@@ -149,12 +151,18 @@ func DataGet(db *sql.Connection,
 	for rows.Next() {
 		d := &model.Data{}
 		if err := rows.Scan(&d.AppCode, &d.AppCoreID, &d.Type, &d.ObjectID,
-			&d.Object, &d.Hash, &d.Status, &d.Deleted,
+			&d.Object, &d.Hash, &d.Deleted, &d.Status,
 			&d.CreatedOn, &d.UpdatedOn); err != nil {
 			return nil, 0, e.Wrap(err, e.Code0412, "04")
 		}
 
-		dList = append(dList, d)
+		if p.Handle != nil {
+			if err := p.Handle(d); err != nil {
+				return nil, 0, e.Wrap(err, e.Code0412, "05")
+			}
+		} else {
+			dList = append(dList, d)
+		}
 	}
 
 	return dList, count, nil
@@ -181,4 +189,34 @@ func DataGetByObjectID(db *sql.Connection, appCode model.AppCode,
 	}
 
 	return dList[0], nil
+}
+
+// DataSetStatusProcessing set all records that are pending to processing
+func DataSetStatusProcessing(db *sql.Connection) (err error) {
+	ub := db.Update(DataTableName).
+		Set("arc_data_status", string(model.DataStatusProcessing)).
+		Set("updated_on", "now()").
+		Where("arc_data_status=?", string(model.DataStatusPending))
+
+	err = db.ExecUpdate(ub)
+	if err != nil {
+		return e.Wrap(err, e.Code0414, "02")
+	}
+
+	return nil
+}
+
+// DataSetStatusProcessed set all records that are processing to processed
+func DataSetStatusProcessed(db *sql.Connection) (err error) {
+	ub := db.Update(DataTableName).
+		Set("arc_data_status", model.DataStatusProcessed).
+		Set("updated_on", "now()").
+		Where("arc_data_status=?", model.DataStatusProcessing)
+
+	err = db.ExecUpdate(ub)
+	if err != nil {
+		return e.Wrap(err, e.Code0414, "02")
+	}
+
+	return nil
 }

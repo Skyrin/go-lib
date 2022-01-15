@@ -14,9 +14,9 @@ const (
 	AppCodeCart      = AppCode("cart")
 	AppCodeCore      = AppCode("core")
 
-	DataStatusError     = DataStatus("error")
-	DataStatusPending   = DataStatus("pending")
-	DataStatusProcessed = DataStatus("processed")
+	DataStatusPending    = DataStatus("pending")
+	DataStatusProcessing = DataStatus("processing")
+	DataStatusProcessed  = DataStatus("processed")
 
 	DataTypeCategory = DataType("category")
 	// DataTypeCategoryList    = DataType("category-list")
@@ -39,7 +39,7 @@ type Data struct {
 	Status    DataStatus      `json:"status"`
 	Object    json.RawMessage `json:"object"`
 	Deleted   bool            `json:"deleted"`
-	Hash      [32]byte        `json:"-"`
+	Hash      []byte          `json:"-"`
 	CreatedOn time.Time       `json:"-"`
 	UpdatedOn time.Time       `json:"-"`
 }

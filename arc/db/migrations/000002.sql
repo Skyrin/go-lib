@@ -2,7 +2,7 @@ BEGIN;
 
 DO $$ BEGIN
 	CREATE TYPE arc_data_status AS ENUM (
-		'pending', 'processed', 'error'
+		'pending', 'processing', 'processed'
 	);
 	EXCEPTION
 	WHEN duplicate_object THEN null;

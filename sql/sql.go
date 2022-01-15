@@ -22,11 +22,11 @@ import (
 // call outside of the txn is needed, the DB property can be accessed directly and
 // used to make a query/exec/select call.
 type Connection struct {
-	DB        *sql.DB
-	Slug      *Slug
-	txn       *Txn
-	txnIdx    int
-	statusMap map[string][]*Status // Cache of statuses
+	DB           *sql.DB
+	Slug         *Slug
+	txn          *Txn
+	txnIdx       int
+	statusMap    map[string][]*Status                    // Cache of statuses
 	statusLoader func(db *Connection) ([]*Status, error) // Status loader
 	// TODO: Keep a pool of Connection objects for reuse?
 }
@@ -198,8 +198,8 @@ func (c *Connection) BeginReturnDB() (db *Connection, err error) {
 		txn: &Txn{
 			txn: txn,
 		},
-		txnIdx: c.txnIdx,
-		statusMap: c.statusMap,
+		txnIdx:       c.txnIdx,
+		statusMap:    c.statusMap,
 		statusLoader: c.statusLoader,
 	}, nil
 }
@@ -453,4 +453,24 @@ func (c *Connection) ExecInsertReturningID(ib sq.InsertBuilder) (id int, err err
 	}
 
 	return id, nil
+}
+
+// ToSQLWFieldAndQuery converts the select builder to a sql, replaces the
+// fields in the statement with the passed fields (this assumes the fields
+// that were used to build the select builder is the const FieldCount) and
+// then attempts to query the statement
+func (c *Connection) ToSQLWFieldAndQuery(sb sq.SelectBuilder, fields string) (rows *Rows, err error) {
+	stmt, bindParams, err := sb.ToSql()
+	if err != nil {
+		return nil, e.Wrap(err, e.Code020U, "01")
+	}
+
+	stmt = strings.Replace(stmt, FieldPlaceHolder, fields, 1)
+	rows, err = c.Query(stmt, bindParams...)
+	if err != nil {
+		return nil, e.Wrap(err, e.Code020U, "02",
+			fmt.Sprintf("bindParams: %+v", bindParams))
+	}
+
+	return rows, nil
 }
