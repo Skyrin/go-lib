@@ -1,5 +1,6 @@
 BEGIN;
 
+-- TODO: Remove this and just use string?
 DO $$ BEGIN
 	CREATE TYPE arc_data_status AS ENUM (
 		'pending', 'processing', 'processed'
@@ -16,9 +17,10 @@ DO $$ BEGIN
 	WHEN duplicate_object THEN null;
 END$$;
 
+-- TODO: Remove this and just use string?
 DO $$ BEGIN
 	CREATE TYPE arc_data_type AS ENUM (
-		'category', 'customer', 'order', 'product', 'purchase',
+		'category', 'customer', 'order', 'order-lease', 'product', 'purchase',
 		'rental-asset', 'user'
 	);
 	EXCEPTION

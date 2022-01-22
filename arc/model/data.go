@@ -22,6 +22,7 @@ const (
 	// DataTypeCategoryList    = DataType("category-list")
 	DataTypeCustomer        = DataType("customer")
 	DataTypeCustomerList    = DataType("customer-list")
+	DataTypeOrderLease      = DataType("order-lease")
 	DataTypeProduct         = DataType("product")
 	DataTypeProductList     = DataType("product-list")
 	DataTypePurchase        = DataType("purchase")
@@ -66,6 +67,8 @@ func (d *Data) IsValidType() bool {
 	case DataTypeCustomer:
 		return true
 	case DataTypeCustomerList:
+		return true
+	case DataTypeOrderLease:
 		return true
 	case DataTypeProduct:
 		return true

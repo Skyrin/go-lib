@@ -141,13 +141,16 @@ func (dh *DataHandler) Publish(r *http.Request) (msg string, code int, err error
 type DataProcessor struct {
 	db     *sql.Connection
 	handle func(*model.Data) error
+	Type   *model.DataType
 }
 
 // NewDataProcess returns a new instance of a data processor
-func NewDataProcessor(db *sql.Connection, f func(*model.Data) error) (dp *DataProcessor) {
+func NewDataProcessor(db *sql.Connection, f func(*model.Data) error,
+	t *model.DataType) (dp *DataProcessor) {
 	return &DataProcessor{
 		db:     db,
 		handle: f,
+		Type:   t,
 	}
 }
 
@@ -155,15 +158,20 @@ func NewDataProcessor(db *sql.Connection, f func(*model.Data) error) (dp *DataPr
 // the passed data handling function. Then marks all of the read records
 // as processed.
 func (dp *DataProcessor) Run() (err error) {
-	// Mark all pending records as processing
-	if err := sqlmodel.DataSetStatusProcessing(dp.db); err != nil {
+	txn, err := dp.db.BeginReturnDB()
+	if err != nil {
 		return e.Wrap(err, e.Code0416, "01")
+	}
+	// Mark all pending records as processing
+	if err := sqlmodel.DataSetStatusProcessing(txn); err != nil {
+		return e.Wrap(err, e.Code0416, "02")
 	}
 
 	// Iterate through all records in the processing status
 	s := model.DataStatusProcessing
-	_, _, err = sqlmodel.DataGet(dp.db, &sqlmodel.DataGetParam{
+	_, _, err = sqlmodel.DataGet(txn, &sqlmodel.DataGetParam{
 		Status: &s,
+		Type:   dp.Type,
 		Handle: dp.handle,
 	})
 	if err != nil {
@@ -171,9 +179,17 @@ func (dp *DataProcessor) Run() (err error) {
 	}
 
 	// Mark all processing records as processed
-	if err := sqlmodel.DataSetStatusProcessed(dp.db); err != nil {
-		return e.Wrap(err, e.Code0416, "01")
+	if err := sqlmodel.DataSetStatusProcessed(txn); err != nil {
+		return e.Wrap(err, e.Code0416, "04")
 	}
 
+	if err := txn.Commit(); err != nil {
+		return e.Wrap(err, e.Code0416, "05")
+	}
 	return nil
+}
+
+// DataProcessorSkip marks the arc_data record as pending (skipping so it will process again)
+func DataProcessorSkip(db *sql.Connection, d *model.Data) (err error) {
+	return sqlmodel.DataSetStatus(db, model.DataStatusPending, d)
 }
