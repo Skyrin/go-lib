@@ -139,18 +139,21 @@ func (dh *DataHandler) Publish(r *http.Request) (msg string, code int, err error
 // calls the app specific function to process it, then marks them all
 // as processed.
 type DataProcessor struct {
-	db     *sql.Connection
-	handle func(*model.Data) error
-	Type   *model.DataType
+	db        *sql.Connection
+	handle    func(*model.Data) error
+	orderList []model.DataType
 }
 
 // NewDataProcess returns a new instance of a data processor
+//  f: defines the function that will be called to handle each record
+//  orderList: if specified, defines the order in which to fetch the records
+//             based on the type
 func NewDataProcessor(db *sql.Connection, f func(*model.Data) error,
-	t *model.DataType) (dp *DataProcessor) {
+	orderList []model.DataType) (dp *DataProcessor) {
 	return &DataProcessor{
-		db:     db,
-		handle: f,
-		Type:   t,
+		db:        db,
+		handle:    f,
+		orderList: orderList,
 	}
 }
 
@@ -170,9 +173,9 @@ func (dp *DataProcessor) Run() (err error) {
 	// Iterate through all records in the processing status
 	s := model.DataStatusProcessing
 	_, _, err = sqlmodel.DataGet(txn, &sqlmodel.DataGetParam{
-		Status: &s,
-		Type:   dp.Type,
-		Handle: dp.handle,
+		Status:          &s,
+		OrderByTypeList: dp.orderList,
+		Handle:          dp.handle,
 	})
 	if err != nil {
 		return e.Wrap(err, e.Code0416, "03")

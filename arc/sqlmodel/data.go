@@ -16,16 +16,17 @@ const (
 
 // DataGetParam model
 type DataGetParam struct {
-	Limit     uint64
-	Offset    uint64
-	AppCode   *model.AppCode
-	AppCoreID *uint
-	Type      *model.DataType
-	ObjectID  *uint
-	Status    *model.DataStatus
-	FlagCount bool
-	OrderBy   string
-	Handle    func(*model.Data) error
+	Limit           uint64
+	Offset          uint64
+	AppCode         *model.AppCode
+	AppCoreID       *uint
+	Type            *model.DataType
+	ObjectID        *uint
+	Status          *model.DataStatus
+	FlagCount       bool
+	OrderBy         string
+	OrderByTypeList []model.DataType
+	Handle          func(*model.Data) error
 }
 
 // DataSetStatus set the status for the specified data record
@@ -137,6 +138,16 @@ func DataGet(db *sql.Connection,
 		sb = sb.OrderBy(fmt.Sprintf(
 			"arc_app_code %s, arc_app_core_id %s, arc_data_type %s, arc_data_object_id %s",
 			p.OrderBy, p.OrderBy, p.OrderBy, p.OrderBy))
+	}
+
+	if p.OrderByTypeList != nil {
+		s := strings.Builder{}
+		_, _ = s.WriteString(`CASE "arc_data_type" `)
+		for idx, o := range p.OrderByTypeList {
+			_, _ = s.WriteString(fmt.Sprintf(` WHEN '%s' THEN %d `, o, idx))
+		}
+		_, _ = s.WriteString(`END ASC`)
+		sb = sb.OrderBy(s.String())
 	}
 
 	stmt, bindList, err = sb.ToSql()
