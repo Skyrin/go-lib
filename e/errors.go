@@ -147,3 +147,21 @@ func Wrap(err error, code, id string, debugMessages ...string) (ee *ExtendedErro
 
 	return ee
 }
+
+// W shorter version of wrap that takes the entire code as one parameter
+// See Wrap for full details
+func W(err error, code string, debugMessages ...string) (ee *ExtendedError) {
+	return Wrap(err, code, "", debugMessages...)
+}
+
+// WWM shorter version of WrapWithMsg that takes the entire code as
+// one parameter. See WrapWithMsg for full details
+func WWM(err error, code, msg string, debugMessages ...string) error {
+	return WrapWithMsg(err, code, "", msg, debugMessages...)
+}
+
+// N shortcut for New that takes the entire code as one parameter
+// See New for full details
+func N(code, msg string) (err error) {
+	return WrapWithMsg(nil, code, "", msg, msg)
+}
