@@ -1,6 +1,5 @@
 BEGIN;
 
--- TODO: Remove this and just use string?
 DO $$ BEGIN
 	CREATE TYPE arc_data_status AS ENUM (
 		'pending', 'processing', 'processed'
@@ -17,16 +16,6 @@ DO $$ BEGIN
 	WHEN duplicate_object THEN null;
 END$$;
 
--- TODO: Remove this and just use string?
-DO $$ BEGIN
-	CREATE TYPE arc_data_type AS ENUM (
-		'category', 'customer', 'order', 'order-lease', 'product', 'purchase',
-		'rental-asset', 'user'
-	);
-	EXCEPTION
-	WHEN duplicate_object THEN null;
-END$$;
-
 -- This keeps track of data that originated from an arc deployment
 CREATE TABLE IF NOT EXISTS arc_data (
 	-- The associated app code: i.e. core, cart or arcimedes
@@ -35,7 +24,7 @@ CREATE TABLE IF NOT EXISTS arc_data (
 	-- (currently not used for core and would always be 0 for it)
 	arc_app_core_id BIGINT NOT NULL,
 	-- The data sync type: i.e. category, customer, product, rental asset, etc
-	arc_data_type arc_data_type NOT NULL,
+	arc_data_type TEXT NOT NULL,
 	-- The underlying arc object id: i.e. id of category/customer/product/etc
 	arc_data_object_id BIGINT NOT NULL,
 	-- The current status of this record

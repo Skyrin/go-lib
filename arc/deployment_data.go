@@ -123,10 +123,6 @@ func (dh *DataHandler) Publish(r *http.Request) (msg string, code int, err error
 		return "invalid app code specified", http.StatusBadRequest, nil
 	}
 
-	if !d.IsValidType() {
-		return "invalid type specified", http.StatusBadRequest, nil
-	}
-
 	if err := sqlmodel.DataUpsert(dh.db, d); err != nil {
 		return e.MsgUnknownInternalServerError, http.StatusBadGateway,
 			e.Wrap(err, e.Code0415, "01", fmt.Sprintf("data: %s", body))
