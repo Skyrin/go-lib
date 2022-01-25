@@ -15,56 +15,17 @@ package e
 
 const (
 	// package: migration
-	Code0001 = "0001"
-	Code0002 = "0002"
-	Code0003 = "0003"
-	Code0004 = "0004"
-	Code0005 = "0005"
-	Code0006 = "0006"
-	Code0007 = "0007"
-	Code0008 = "0008"
-
-	// package: migration/sqlmodel
-	Code0101 = "0101"
-	Code0102 = "0102"
-	Code0103 = "0103"
-	Code0104 = "0104"
-	Code0105 = "0105"
+	Code0001 = "0001" // package:migration | migration/migration.go
+	Code0002 = "0002" // package:migration | migration/migration_list.go
+	Code0003 = "0003" // package:migration/sqlmodel | migration/sqlmodel/migration.go
 
 	// package: sql
-	Code0201 = "0201"
-	Code0202 = "0202"
-	Code0203 = "0203"
-	Code0204 = "0204"
-	Code0205 = "0205"
-	Code0206 = "0206"
-	Code0207 = "0207"
-	Code0208 = "0208"
-	Code0209 = "0209"
-	Code020A = "020A"
-	Code020B = "020B"
-	Code020C = "020C"
-	Code020D = "020D"
-	Code020E = "020E"
-	Code020F = "020F"
-	Code020G = "020G"
-	Code020H = "020H"
-	Code020I = "020I"
-	Code020J = "020J"
-	Code020K = "020K"
-	Code020L = "020L"
-	Code020M = "020M"
-	Code020N = "020N"
-	Code020O = "020O"
-	Code020P = "020P"
-	Code020Q = "020Q"
-	Code020R = "020R"
-	Code020S = "020S"
-	Code020T = "020T"
-	Code020U = "020U"
-
-	//package: http
-	// Code0301 = "0301"
+	Code0201 = "0201" // package:sql | sql/count.go
+	Code0202 = "0202" // package:sql | sql/row.go
+	Code0203 = "0203" // package:sql | sql/sql.go
+	Code0204 = "0204" // package:sql | sql/status.go
+	Code0205 = "0205" // package:sql | sql/txn.go
+	Code0206 = "0206" // package:sql | sql/rows.go
 
 	// package: process
 	Code0301 = "0301" // package:process | process/process.go
@@ -72,86 +33,49 @@ const (
 	Code0303 = "0303" // package:sqlmodel | process/internal/sqlmodel/process_run.go
 
 	//package: arc
-	Code0401 = "0401"
-	Code0402 = "0402"
-	Code0403 = "0403"
-	Code0404 = "0404"
-	Code0405 = "0405"
-	Code0406 = "0406"
-	Code0407 = "0407"
-	Code0408 = "0408"
-	Code0409 = "0409"
-	Code040A = "040A"
-	Code040B = "040B"
-	Code040C = "040C"
-	Code040D = "040D"
-	Code040E = "040E"
-	Code040F = "040F"
-	Code040G = "040G"
-	Code040H = "040H"
-	Code040I = "040I"
-	Code040J = "040J"
-	Code040K = "040K"
-	Code040L = "040L"
-	Code040M = "040M"
-	Code040N = "040N"
-	Code040O = "040O"
-	Code040P = "040P"
-	Code040Q = "040Q"
-	Code040R = "040R"
-	Code040S = "040S"
-	Code040T = "040T"
-	Code040U = "040U"
-	Code040V = "040V"
-	Code040W = "040W"
-	Code040X = "040X"
-	Code040Y = "040Y"
-	Code040Z = "040Z"
-	Code0410 = "0410"
-	Code0411 = "0411"
-	Code0412 = "0412"
-	Code0413 = "0413"
-	Code0414 = "0414"
-	Code0415 = "0415"
-	Code0416 = "0416"
+	Code0401 = "0401" // package:arc | arc/arc_client.go
+	Code0402 = "0402" // package:arc | arc/arcimedes_user.go
+	Code0403 = "0403" // package:arc | arc/cart_customer.go
+	Code0404 = "0404" // package:arc | arc/core_user.go
+	Code0405 = "0405" // package:arc | arc/deployment_data.go
+	Code0406 = "0406" // package:arc | arc/deployment_notify.go
+	Code0407 = "0407" // package:arc | arc/deployment.go
+	Code0408 = "0408" // package:arc | arc/grant_login.go
+	Code0409 = "0409" // package:arc | arc/grant.go
+	Code040A = "040A" // package:arc | arc/response.go
+	Code040B = "040B" // package:arc/sqlmodel | arc/sqlmodel/credential.go
+	Code040C = "040C" // package:arc/sqlmodel | arc/sqlmodel/data.go
+	Code040D = "040D" // package:arc/sqlmodel | arc/sqlmodel/deployment.go
+	// Code040E = "040E"
+	// Code040F = "040F"
+	// Code040G = "040G"
+	// Code040H = "040H"
+	// Code040I = "040I"
+	// Code040J = "040J"
+	// Code040K = "040K"
+	// Code040L = "040L"
+	// Code040M = "040M"
+	// Code040N = "040N"
+	// Code040O = "040O"
+	// Code040P = "040P"
+	// Code040Q = "040Q"
+	// Code040R = "040R"
+	// Code040S = "040S"
+	// Code040T = "040T"
+	// Code040U = "040U"
+	// Code040V = "040V"
+	// Code040W = "040W"
+	// Code040X = "040X"
+	// Code040Y = "040Y"
+	Code040Z = "040Z" // package:arc/sqlmodel | arc/sqlmodel/deployment_grant.go
 
 	//package: algolia
 	Code0501 = "0501"
 	Code0502 = "0502"
 	Code0503 = "0503"
-	Code0504 = "0504"
-	Code0505 = "0505"
-	Code0506 = "0506"
-	Code0507 = "0507"
-	Code0508 = "0508"
-	Code0509 = "0509"
-	Code050A = "050A"
-	Code050B = "050B"
-	Code050C = "050C"
-	Code050D = "050D"
-	Code050E = "050E"
-	Code050F = "050F"
-	Code050G = "050G"
-	Code050H = "050H"
-	Code050I = "050I"
 
 	//package: sync
 	Code0601 = "0601"
 	Code0602 = "0602"
 	Code0603 = "0603"
-	Code0604 = "0604"
-	Code0605 = "0605"
-	Code0606 = "0606"
-	//Code0607 = "0607"
-	//Code0608 = "0608"
-	//Code0609 = "0609"
-	//Code060A = "060A"
-	Code060B = "060B"
-	Code060C = "060C"
-	Code060D = "060D"
-	Code060E = "060E"
-	Code060F = "060F"
-	//Code060G = "060G"
-	Code060H = "060H"
-	Code060I = "060I"
 )

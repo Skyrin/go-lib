@@ -7,6 +7,17 @@ import (
 	"github.com/Skyrin/go-lib/e"
 )
 
+const (
+	ECode040301 = e.Code0403 + "01"
+	ECode040302 = e.Code0403 + "02"
+	ECode040303 = e.Code0403 + "03"
+	ECode040304 = e.Code0403 + "04"
+	ECode040305 = e.Code0403 + "05"
+	ECode040306 = e.Code0403 + "06"
+	ECode040307 = e.Code0403 + "07"
+	ECode040308 = e.Code0403 + "08"
+)
+
 // RegisterCartCustomer attempts to create the cart customer in arc. If the
 // customer already exists in arc, will fetch the arc user id (by the passed
 // username) and then make the call to update it. This should only be called
@@ -41,7 +52,7 @@ func (c *Client) RegisterCartCustomer(storeCode string,
 
 	ca, err := c.getClientAuth()
 	if err != nil {
-		return nil, e.Wrap(err, e.Code040E, "01")
+		return nil, e.W(err, ECode040301)
 	}
 	res, err := c.sendSingleRequestItem(
 		c.deployment.getManageCartServiceURL(storeCode),
@@ -60,22 +71,22 @@ func (c *Client) RegisterCartCustomer(storeCode string,
 			// First now fetch that user
 			cust, err = c.CartGetCustomerByUsername(storeCode, ci.Username)
 			if err != nil {
-				return nil, e.Wrap(err, e.Code040E, "02")
+				return nil, e.W(err, ECode040302)
 			}
 
 			// Try to upsert with the id now
 			ci.ArcUserID = cust.ID
 			cust, err = c.RegisterCartCustomer(storeCode, ci, false)
 			if err != nil {
-				return nil, e.Wrap(err, e.Code040E, "02")
+				return nil, e.W(err, ECode040303)
 			}
 		} else {
-			return nil, e.Wrap(err, e.Code040E, "04")
+			return nil, e.W(err, ECode040304)
 		}
 	} else {
 		cust = &ArcUser{}
 		if err := json.Unmarshal(res.Data, cust); err != nil {
-			return nil, e.Wrap(err, e.Code040E, "05")
+			return nil, e.W(err, ECode040305)
 		}
 	}
 
@@ -99,19 +110,19 @@ func (c *Client) CartGetCustomerByUsername(storeCode, username string) (cust *Ar
 
 	ca, err := c.getClientAuth()
 	if err != nil {
-		return nil, e.Wrap(err, e.Code040F, "01")
+		return nil, e.W(err, ECode040306)
 	}
 	res, err := c.sendSingleRequestItem(
 		c.deployment.getManageCartServiceURL(storeCode),
 		ri,
 		ca)
 	if err != nil {
-		return nil, e.Wrap(err, e.Code040F, "02")
+		return nil, e.W(err, ECode040307)
 	}
 
 	custList := []*ArcUser{}
 	if err := json.Unmarshal(res.Data, &custList); err != nil {
-		return nil, e.Wrap(err, e.Code040F, "03")
+		return nil, e.W(err, ECode040308)
 	}
 
 	if len(custList) != 1 {

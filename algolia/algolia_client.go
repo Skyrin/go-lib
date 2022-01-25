@@ -12,6 +12,15 @@ import (
 	"github.com/algolia/algoliasearch-client-go/v3/algolia/search"
 )
 
+const (
+	ECode050101 = e.Code0501 + "01"
+	ECode050102 = e.Code0501 + "02"
+	ECode050103 = e.Code0501 + "03"
+	ECode050104 = e.Code0501 + "04"
+	ECode050105 = e.Code0501 + "05"
+	ECode050106 = e.Code0501 + "06"
+)
+
 // Algolia handler for pushing index updates to Algolia
 type Algolia struct {
 	Client        *search.Client
@@ -35,7 +44,7 @@ func NewAlgolia(config *model.AlgoliaConfig) (alg *Algolia, err error) {
 	}
 
 	if config.NumGoRoutines > MaxGoroutines {
-		return nil, e.New(e.Code050F, "04",
+		return nil, e.N(ECode050101,
 			fmt.Sprintf("Number go routines '%d' exceeds allowed max: %d",
 				config.NumGoRoutines, MaxGoroutines))
 	} else if config.NumGoRoutines <= 0 {
@@ -55,7 +64,7 @@ func NewAlgolia(config *model.AlgoliaConfig) (alg *Algolia, err error) {
 func (alg *Algolia) Push(item interface{}) (err error) {
 	_, err = alg.Index.SaveObject(item)
 	if err != nil {
-		return e.Wrap(err, e.Code0501, "01")
+		return e.W(err, ECode050102)
 	}
 
 	return nil
@@ -65,7 +74,7 @@ func (alg *Algolia) Push(item interface{}) (err error) {
 func (alg *Algolia) Delete(objectID string) (err error) {
 	_, err = alg.Index.DeleteObject(objectID)
 	if err != nil {
-		return e.Wrap(err, e.Code0502, "01")
+		return e.W(err, ECode050103)
 	}
 
 	return nil
@@ -76,7 +85,7 @@ func (alg *Algolia) Delete(objectID string) (err error) {
 func (alg *Algolia) DeleteBy(opt ...interface{}) (res search.UpdateTaskRes, err error) {
 	res, err = alg.Index.DeleteBy(opt...)
 	if err != nil {
-		return res, e.Wrap(err, e.Code050I, "01")
+		return res, e.W(err, ECode050104)
 	}
 
 	return res, nil
@@ -102,7 +111,7 @@ func (alg *Algolia) SyncItem(db *sql.Connection, item *model.AlgoliaSync) (err e
 		// TODO: save error to algolia_sync_error_text or something similar
 		if err2 := sqlmodel.AlgoliaSyncSetStatus(db, item.ID,
 			model.AlgoliaSyncStatusFailed, &item.ItemHash, item.Item); err2 != nil {
-			return e.Wrap(err, e.Code0505, "01")
+			return e.W(err, ECode050105)
 		}
 
 		// Since saved the status/failure, return nil
@@ -113,7 +122,7 @@ func (alg *Algolia) SyncItem(db *sql.Connection, item *model.AlgoliaSync) (err e
 	if err := sqlmodel.AlgoliaSyncSetStatus(db, item.ID,
 		model.AlgoliaSyncStatusComplete, &item.ItemHash, item.Item); err != nil {
 
-		return e.Wrap(err, e.Code0505, "02")
+		return e.W(err, ECode050106)
 	}
 
 	return nil

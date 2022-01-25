@@ -7,6 +7,17 @@ import (
 	"github.com/Skyrin/go-lib/e"
 )
 
+const (
+	ECode040401 = e.Code0404 + "01"
+	ECode040402 = e.Code0404 + "02"
+	ECode040403 = e.Code0404 + "03"
+	ECode040404 = e.Code0404 + "04"
+	ECode040405 = e.Code0404 + "05"
+	ECode040406 = e.Code0404 + "06"
+	ECode040407 = e.Code0404 + "07"
+	ECode040408 = e.Code0404 + "08"
+)
+
 // RegisterCoreUser attempts to create the core user in arc. If the
 // user already exists in arc, will fetch the arc user id (by the passed
 // username) and then make the call to update it. This should only be called
@@ -39,7 +50,7 @@ func (c *Client) RegisterCoreUser(ui *ArcUser, retry bool) (au *ArcUser, err err
 
 	ca, err := c.getClientAuth()
 	if err != nil {
-		return nil, e.Wrap(err, e.Code040G, "01")
+		return nil, e.W(err, ECode040401)
 	}
 
 	res, err := c.sendSingleRequestItem(
@@ -60,22 +71,22 @@ func (c *Client) RegisterCoreUser(ui *ArcUser, retry bool) (au *ArcUser, err err
 			// First now fetch that user
 			au, err = c.CoreUserGetByUsername(ui.Username)
 			if err != nil {
-				return nil, e.Wrap(err, e.Code040G, "02")
+				return nil, e.W(err, ECode040402)
 			}
 
 			// Try to upsert with the id now
 			ui.ArcUserID = au.ID
 			au, err = c.RegisterCoreUser(ui, false)
 			if err != nil {
-				return nil, e.Wrap(err, e.Code040G, "03")
+				return nil, e.W(err, ECode040403)
 			}
 		} else {
-			return nil, e.Wrap(err, e.Code040G, "04")
+			return nil, e.W(err, ECode040404)
 		}
 	} else {
 		au = &ArcUser{}
 		if err := json.Unmarshal(res.Data, au); err != nil {
-			return nil, e.Wrap(err, e.Code040G, "05")
+			return nil, e.W(err, ECode040405)
 		}
 	}
 
@@ -99,19 +110,19 @@ func (c *Client) CoreUserGetByUsername(username string) (au *ArcUser, err error)
 
 	ca, err := c.getClientAuth()
 	if err != nil {
-		return nil, e.Wrap(err, e.Code040H, "01")
+		return nil, e.W(err, ECode040406)
 	}
 	res, err := c.sendSingleRequestItem(
 		c.deployment.getManageCoreServiceURL(),
 		ri,
 		ca)
 	if err != nil {
-		return nil, e.Wrap(err, e.Code040H, "02")
+		return nil, e.W(err, ECode040407)
 	}
 
 	auList := []*ArcUser{}
 	if err := json.Unmarshal(res.Data, &auList); err != nil {
-		return nil, e.Wrap(err, e.Code040H, "03")
+		return nil, e.W(err, ECode040408)
 	}
 
 	if len(auList) != 1 {

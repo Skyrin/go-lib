@@ -16,6 +16,13 @@ const (
 	DefaultNumGoRoutines = 25
 )
 
+const (
+	ECode050201 = e.Code0502 + "01"
+	ECode050202 = e.Code0502 + "02"
+	ECode050203 = e.Code0502 + "03"
+	ECode050204 = e.Code0502 + "04"
+)
+
 // getAllPendingAndFailed gets all pending and failed records and sends them to the returned item channel
 // for processing. If an error occurs, it is sent to the error channel
 func getAllPendingAndFailed(db *sql.Connection, done <-chan struct{}) (
@@ -31,7 +38,7 @@ func getAllPendingAndFailed(db *sql.Connection, done <-chan struct{}) (
 			select {
 			case itemCh <- as: // Send the record to the item channel
 			case <-done:
-				return e.New(e.Code050G, "01", "data-cancelled")
+				return e.N(ECode050201, "data-cancelled")
 			}
 			return nil
 		},
@@ -42,7 +49,7 @@ func getAllPendingAndFailed(db *sql.Connection, done <-chan struct{}) (
 		}()
 		if _, _, err := sqlmodel.AlgoliaSyncGet(db, p); err != nil {
 			// Send the error to the error channel
-			errCh <- e.Wrap(err, e.Code050G, "02")
+			errCh <- e.W(err, ECode050202)
 		}
 
 		// Send nil to the error channel so it is processed
@@ -98,14 +105,14 @@ func runSync(db *sql.Connection, alg *Algolia,
 	// Check for any errors in the results
 	for err := range resCh {
 		if err != nil {
-			return e.Wrap(err, e.Code050H, "01")
+			return e.W(err, ECode050203)
 		}
 	}
 
 	// Check for pre-result errors - must occur last as getAllPendingAndFailed
 	// could possibly block otherwise
 	if err := <-errCh; err != nil {
-		return e.Wrap(err, e.Code050H, "02")
+		return e.W(err, ECode050204)
 	}
 
 	return nil

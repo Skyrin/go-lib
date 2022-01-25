@@ -44,6 +44,26 @@ const (
 	arcimedesPath = "/apps/arcimedes/services/"
 	// Path for cart API requests
 	cartPath = "/apps/cart/stores/%s/services/"
+
+	ECode040101 = e.Code0401 + "01"
+	ECode040102 = e.Code0401 + "02"
+	ECode040103 = e.Code0401 + "03"
+	ECode040104 = e.Code0401 + "04"
+	ECode040105 = e.Code0401 + "05"
+	ECode040106 = e.Code0401 + "06"
+	ECode040107 = e.Code0401 + "07"
+	ECode040108 = e.Code0401 + "08"
+	ECode040109 = e.Code0401 + "09"
+	ECode04010A = e.Code0401 + "0A"
+	ECode04010B = e.Code0401 + "0B"
+	ECode04010C = e.Code0401 + "0C"
+	ECode04010D = e.Code0401 + "0D"
+	ECode04010E = e.Code0401 + "0E"
+	ECode04010F = e.Code0401 + "0F"
+	ECode04010G = e.Code0401 + "0G"
+	ECode04010H = e.Code0401 + "0H"
+	ECode04010I = e.Code0401 + "0I"
+	ECode04010J = e.Code0401 + "0J"
 )
 
 // Client handles the posting/making arc requests to an arc API server
@@ -83,17 +103,17 @@ func NewClientFromDeployment(cp *sql.ConnParam,
 
 	db, err := sql.NewPostgresConn(cp)
 	if err != nil {
-		return nil, e.Wrap(err, e.Code0405, "01")
+		return nil, e.W(err, ECode040101)
 	}
 
 	d, err := sqlmodel.DeploymentGetByCode(db, deploymentCode)
 	if err != nil {
-		return nil, e.Wrap(err, e.Code0405, "02")
+		return nil, e.W(err, ECode040102)
 	}
 
 	deployment, err := NewDeployment(db, cp, deploymentCode)
 	if err != nil {
-		return nil, e.Wrap(err, e.Code0405, "03")
+		return nil, e.W(err, ECode040103)
 	}
 
 	deployment.StoreCode = storeCode
@@ -112,7 +132,7 @@ func NewClientFromDeployment(cp *sql.ConnParam,
 // Connect attempts to connect to the client
 func (c *Client) Connect() (err error) {
 	if c.deployment == nil {
-		return e.New(e.Code0406, "01", "no deployment configured")
+		return e.N(ECode040104, "no deployment configured")
 	}
 
 	if c.deployment.Model.Token == "" {
@@ -120,12 +140,12 @@ func (c *Client) Connect() (err error) {
 		g, err := grantClientCredentials(c, c.deployment.Model.ClientID,
 			c.deployment.Model.ClientSecret)
 		if err != nil {
-			return e.Wrap(err, e.Code0406, "02")
+			return e.W(err, ECode040105)
 		}
 		c.grant = g
 		// Update DB record
 		if err := c.deployment.UpdateGrant(g); err != nil {
-			return e.Wrap(err, e.Code0406, "03")
+			return e.W(err, ECode040106)
 		}
 		return nil
 	}
@@ -148,13 +168,13 @@ func (c *Client) Connect() (err error) {
 			c.deployment.Model.Token = ""
 			return c.Connect()
 		}
-		return e.Wrap(err, e.Code0406, "04")
+		return e.W(err, ECode040107)
 	}
 
 	// If it was refreshed, then save to DB
 	if refreshed {
 		if err := c.deployment.UpdateGrant(c.grant); err != nil {
-			return e.Wrap(err, e.Code0406, "05")
+			return e.W(err, ECode040108)
 		}
 	}
 
@@ -206,18 +226,18 @@ func (c *Client) AddRequest(req RequestItem) {
 // Flush sends whatever is in the current queue
 func (c *Client) Flush() (resList *ResponseList, err error) {
 	// TODO: implement
-	return nil, e.New(e.Code0407, "02", "not implemented yet")
+	return nil, e.N(ECode040109, "not implemented yet")
 }
 
 // Send performs the actual publish requet to the arc notification service
 func (c *Client) Send(reqItemList []*RequestItem) (resList *ResponseList, err error) {
 	if len(c.RequestList) == 0 {
-		return nil, e.New(e.Code0408, "01", "request list is empty")
+		return nil, e.N(ECode04010A, "request list is empty")
 	}
 
 	ca, err := c.getClientAuth()
 	if err != nil {
-		return nil, e.Wrap(err, e.Code0408, "02")
+		return nil, e.W(err, ECode04010B)
 	}
 	reqList := c.newRequestList(reqItemList)
 	reqList.setAuth(ca)
@@ -235,7 +255,7 @@ func (c *Client) Send(reqItemList []*RequestItem) (resList *ResponseList, err er
 
 	resList, err = c.send(url, reqList, true)
 	if err != nil {
-		return resList, e.Wrap(err, e.Code0408, "03")
+		return resList, e.W(err, ECode04010C)
 	}
 
 	c.RequestList = nil
@@ -256,12 +276,12 @@ func (c *Client) sendSingleRequestItem(url string, ri *RequestItem,
 	// If using an access token for authentication, then retry on failure
 	resList, err := c.send(url, reqList, reqList.AccessToken != "")
 	if err != nil {
-		return nil, e.Wrap(err, e.Code0409, "01")
+		return nil, e.W(err, ECode04010D)
 	}
 
 	if !resList.Responses[0].Success {
 		return &resList.Responses[0],
-			e.New(e.Code0409, "02",
+			e.N(ECode04010E,
 				fmt.Sprintf("[%s]%s", resList.Responses[0].ErrorCode,
 					resList.Responses[0].Message))
 	}
@@ -278,7 +298,7 @@ func (c *Client) send(url string, r *RequestList,
 
 	req, err := http.NewRequest("POST", url, payload)
 	if err != nil {
-		return nil, e.Wrap(err, e.Code040A, "01")
+		return nil, e.W(err, ECode04010F)
 	}
 
 	req.Header.Add("Content-Type", "application/json")
@@ -287,19 +307,19 @@ func (c *Client) send(url string, r *RequestList,
 	client := &http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
-		return nil, e.Wrap(err, e.Code040A, "02")
+		return nil, e.W(err, ECode04010G)
 	}
 	defer res.Body.Close()
 
 	resList = &ResponseList{}
 	decoder := json.NewDecoder(res.Body)
 	if err := decoder.Decode(resList); err != nil {
-		return nil, e.Wrap(err, e.Code040A, "01",
+		return nil, e.W(err, ECode04010H,
 			fmt.Sprintf("url: %+v", req.URL))
 	}
 
 	if err := resList.responseErrors(); err != nil {
-		return nil, e.Wrap(err, e.Code040A, "04")
+		return nil, e.W(err, ECode04010I)
 	}
 
 	return resList, nil
@@ -324,7 +344,7 @@ func (c *Client) getClientAuth() (ca *clientAuth, err error) {
 	ca = &clientAuth{}
 	if c.deployment != nil {
 		if err := c.Connect(); err != nil {
-			return nil, e.Wrap(err, e.Code040B, "01")
+			return nil, e.W(err, ECode04010J)
 		}
 		// reqList.AccessToken = c.grant.Token
 		ca.accessToken = c.grant.Token

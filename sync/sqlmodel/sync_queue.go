@@ -13,6 +13,24 @@ import (
 const (
 	SyncQueueTableName     = "sync_queue"
 	SyncQueueDefaultSortBy = "sync_queue_id"
+
+	ECode060301 = e.Code0603 + "01"
+	ECode060302 = e.Code0603 + "02"
+	ECode060303 = e.Code0603 + "03"
+	ECode060304 = e.Code0603 + "04"
+	ECode060305 = e.Code0603 + "05"
+	ECode060306 = e.Code0603 + "06"
+	ECode060307 = e.Code0603 + "07"
+	ECode060308 = e.Code0603 + "08"
+	ECode060309 = e.Code0603 + "09"
+	ECode06030A = e.Code0603 + "0A"
+	ECode06030B = e.Code0603 + "0B"
+	ECode06030C = e.Code0603 + "0C"
+	ECode06030D = e.Code0603 + "0D"
+	ECode06030E = e.Code0603 + "0E"
+	ECode06030F = e.Code0603 + "0F"
+	ECode06030G = e.Code0603 + "0G"
+	ECode06030H = e.Code0603 + "0H"
 )
 
 // SyncQueueGetParam model
@@ -56,7 +74,7 @@ func Upsert(db *sql.Connection, input *model.SyncQueue) (id int, err error) {
 
 	id, err = db.ExecInsertReturningID(ib)
 	if err != nil {
-		return 0, e.Wrap(err, e.Code0601, "01")
+		return 0, e.W(err, ECode060301)
 	}
 
 	return id, nil
@@ -75,7 +93,7 @@ func SyncQueueSetStatus(db *sql.Connection, id int, status string) (err error) {
 	}
 
 	if err := db.ExecUpdate(ub); err != nil {
-		return e.Wrap(err, e.Code0602, "01")
+		return e.W(err, ECode060302)
 	}
 
 	return nil
@@ -89,7 +107,7 @@ func SyncQueueSetHash(db *sql.Connection, id int, hash string) (err error) {
 		Set("updated_on", "now()")
 
 	if err := db.ExecUpdate(ub); err != nil {
-		return e.Wrap(err, e.Code060H, "01")
+		return e.W(err, ECode060303)
 	}
 
 	return nil
@@ -106,7 +124,7 @@ func SyncQueueSetItemHashAndStatus(db *sql.Connection, id int,
 		Set("updated_on", "now()")
 
 	if err := db.ExecUpdate(ub); err != nil {
-		return e.Wrap(err, e.Code060H, "01")
+		return e.W(err, ECode060304)
 	}
 
 	return nil
@@ -122,7 +140,7 @@ func SyncQueueSetError(db *sql.Connection, id int, msg string) (err error) {
 		Set("updated_on", "now()")
 
 	if err := db.ExecUpdate(ub); err != nil {
-		return e.Wrap(err, e.Code060E, "01")
+		return e.W(err, ECode060305)
 	}
 
 	return nil
@@ -140,7 +158,7 @@ func SyncQueueSetDelete(db *sql.Connection, id int, delete bool) (err error) {
 	}
 
 	if err := db.ExecUpdate(ub); err != nil {
-		return e.Wrap(err, e.Code060I, "01")
+		return e.W(err, ECode060306)
 	}
 
 	return nil
@@ -161,7 +179,7 @@ func SyncQueueSetDeleteByServiceItemTypeAndItemID(db *sql.Connection, itemID int
 	}
 
 	if err := db.ExecUpdate(ub); err != nil {
-		return e.Wrap(err, e.Code0603, "01")
+		return e.W(err, ECode060307)
 	}
 
 	return nil
@@ -212,13 +230,13 @@ func SyncQueueGet(db *sql.Connection,
 
 	stmt, bindList, err := sb.ToSql()
 	if err != nil {
-		return nil, 0, e.Wrap(err, e.Code0604, "01")
+		return nil, 0, e.W(err, ECode060308)
 	}
 
 	if p.FlagCount {
 		row := db.QueryRow(strings.Replace(stmt, "{fields}", "count(*)", 1), bindList...)
 		if err := row.Scan(&count); err != nil {
-			return nil, 0, e.Wrap(err, e.Code0604, "02",
+			return nil, 0, e.W(err, ECode060309,
 				fmt.Sprintf("SyncQueueGet.2 | stmt: %s, bindList: %+v",
 					stmt, bindList))
 		}
@@ -253,7 +271,7 @@ func SyncQueueGet(db *sql.Connection,
 	stmt = strings.Replace(stmt, "{fields}", fields, 1)
 	rows, err := db.Query(stmt, bindList...)
 	if err != nil {
-		return nil, 0, e.Wrap(err, e.Code0604, "03")
+		return nil, 0, e.W(err, ECode06030A)
 	}
 	defer rows.Close()
 
@@ -263,12 +281,12 @@ func SyncQueueGet(db *sql.Connection,
 			&sq.Status, &sq.Retries, &sq.Service, &sq.ForDelete,
 			&sq.ItemType, &sq.ItemID, &sq.ItemHash,
 			&sq.CreatedOn, &sq.UpdatedOn); err != nil {
-			return nil, 0, e.Wrap(err, e.Code0604, "04")
+			return nil, 0, e.W(err, ECode06030B)
 		}
 
 		if p.DataHandler != nil {
 			if err := p.DataHandler(sq); err != nil {
-				return nil, 0, e.Wrap(err, e.Code0604, "05")
+				return nil, 0, e.W(err, ECode06030C)
 			}
 		} else {
 			sqList = append(sqList, sq)
@@ -304,11 +322,11 @@ func SyncQueueGetByItemIDTypeAndService(db *sql.Connection, itemID int,
 
 	sqList, _, err := SyncQueueGet(db, p)
 	if err != nil {
-		return nil, e.Wrap(err, e.Code0605, "01")
+		return nil, e.W(err, ECode06030D)
 	}
 
 	if len(sqList) == 0 {
-		return nil, e.New(e.Code0605, "02", "no items found")
+		return nil, e.N(ECode06030E, "no items found")
 	}
 
 	return sqList[0], nil
@@ -318,7 +336,7 @@ func SyncQueueGetByItemIDTypeAndService(db *sql.Connection, itemID int,
 func SyncQueueGetItemIDsByServiceAndItemType(db *sql.Connection, limit, offset int,
 	status []string, itemType, service string) (idList []int, count int, err error) {
 	if len(service) == 0 {
-		return nil, 0, e.Wrap(fmt.Errorf("service cannot be blank"), e.Code0606, "01")
+		return nil, 0, e.N(ECode06030F, "service cannot be blank")
 	}
 
 	serviceList := []string{service}
@@ -340,14 +358,14 @@ func SyncQueueGetItemIDsByServiceAndItemType(db *sql.Connection, limit, offset i
 	stmt = strings.Replace(stmt, "{fields}", fields, 1)
 	rows, err := db.Query(stmt, bindList...)
 	if err != nil {
-		return nil, 0, e.Wrap(err, e.Code0606, "02")
+		return nil, 0, e.W(err, ECode06030G)
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		var id int
 		if err := rows.Scan(&id); err != nil {
-			return nil, 0, e.Wrap(err, e.Code0606, "03")
+			return nil, 0, e.W(err, ECode06030H)
 		}
 
 		idList = append(idList, id)

@@ -8,6 +8,15 @@ import (
 	"github.com/Skyrin/go-lib/e"
 )
 
+const (
+	ECode000201 = e.Code0002 + "01"
+	ECode000202 = e.Code0002 + "02"
+	ECode000203 = e.Code0002 + "03"
+	ECode000204 = e.Code0002 + "04"
+	ECode000205 = e.Code0002 + "05"
+	ECode000206 = e.Code0002 + "06"
+)
+
 type File struct {
 	Name    string
 	Version int
@@ -38,7 +47,7 @@ func NewList(code, path string, migrations embed.FS) (l *List) {
 func (f *File) GetVersionFromName() (v int, err error) {
 	sList := strings.Split(f.Name, "_")
 	if len(sList) == 0 {
-		return 0, e.WrapWithMsg(nil, e.Code0001, "01", e.MsgMigrationFileNameInvalid)
+		return 0, e.WWM(nil, ECode000201, e.MsgMigrationFileNameInvalid)
 	}
 
 	if len(sList) == 1 {
@@ -47,11 +56,11 @@ func (f *File) GetVersionFromName() (v int, err error) {
 
 	v, err = strconv.Atoi(sList[0])
 	if err != nil {
-		return 0, e.WrapWithMsg(err, e.Code0001, "02", e.MsgMigrationFileNameInvalid)
+		return 0, e.WWM(err, ECode000202, e.MsgMigrationFileNameInvalid)
 	}
 
 	if v <= 0 {
-		return 0, e.WrapWithMsg(err, e.Code0001, "03", e.MsgMigrationFileNameInvalid)
+		return 0, e.WWM(err, ECode000203, e.MsgMigrationFileNameInvalid)
 	}
 
 	return v, nil
@@ -63,7 +72,7 @@ func (l List) GetLatestMigrationFiles(v int) (fList []*File, err error) {
 
 	dirList, err := l.migrations.ReadDir(l.path)
 	if err != nil {
-		return nil, e.Wrap(err, e.Code0002, "01")
+		return nil, e.W(err, ECode000204)
 	}
 	fList = make([]*File, 0, len(dirList))
 
@@ -83,7 +92,7 @@ func (l List) GetLatestMigrationFiles(v int) (fList []*File, err error) {
 
 		f.Version, err = f.GetVersionFromName()
 		if err != nil {
-			return nil, e.Wrap(err, e.Code0002, "02")
+			return nil, e.W(err, ECode000205)
 		}
 
 		// TODO: ensure incremental versions?
@@ -95,7 +104,7 @@ func (l List) GetLatestMigrationFiles(v int) (fList []*File, err error) {
 		// Should be a file we are looking for
 		f.SQL, err = l.migrations.ReadFile(embededFilePath)
 		if err != nil {
-			return nil, e.Wrap(err, e.Code0002, "03")
+			return nil, e.W(err, ECode000206)
 		}
 
 		fList = append(fList, f)

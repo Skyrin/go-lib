@@ -12,6 +12,18 @@ import (
 
 const (
 	DataTableName = "arc_data"
+
+	ECode040C01 = e.Code040C + "01"
+	ECode040C02 = e.Code040C + "02"
+	ECode040C03 = e.Code040C + "03"
+	ECode040C04 = e.Code040C + "04"
+	ECode040C05 = e.Code040C + "05"
+	ECode040C06 = e.Code040C + "06"
+	ECode040C07 = e.Code040C + "07"
+	ECode040C08 = e.Code040C + "08"
+	ECode040C09 = e.Code040C + "09"
+	ECode040C0A = e.Code040C + "0A"
+	ECode040C0B = e.Code040C + "0B"
 )
 
 // DataGetParam model
@@ -41,7 +53,7 @@ func DataSetStatus(db *sql.Connection, s model.DataStatus, d *model.Data) (err e
 
 	err = db.ExecUpdate(ub)
 	if err != nil {
-		return e.Wrap(err, e.Code0414, "02")
+		return e.W(err, ECode040C01)
 	}
 
 	return nil
@@ -76,7 +88,7 @@ func DataUpsert(db *sql.Connection, d *model.Data) (err error) {
 
 	err = db.ExecInsert(ib)
 	if err != nil {
-		return e.Wrap(err, e.Code0411, "01")
+		return e.W(err, ECode040C02)
 	}
 
 	return nil
@@ -119,13 +131,13 @@ func DataGet(db *sql.Connection,
 
 	stmt, bindList, err := sb.ToSql()
 	if err != nil {
-		return nil, 0, e.Wrap(err, e.Code0412, "01")
+		return nil, 0, e.W(err, ECode040C03)
 	}
 
 	if p.FlagCount {
 		row := db.QueryRow(strings.Replace(stmt, "{fields}", "count(*)", 1), bindList...)
 		if err := row.Scan(&count); err != nil {
-			return nil, 0, e.Wrap(err, e.Code0412, "02",
+			return nil, 0, e.W(err, ECode040C04,
 				fmt.Sprintf("stmt: %s, bindList: %+v", stmt, bindList))
 		}
 	}
@@ -155,7 +167,7 @@ func DataGet(db *sql.Connection,
 
 	rows, err := db.Query(stmt, bindList...)
 	if err != nil {
-		return nil, 0, e.Wrap(err, e.Code0412, "03")
+		return nil, 0, e.W(err, ECode040C05)
 	}
 	defer rows.Close()
 
@@ -164,12 +176,12 @@ func DataGet(db *sql.Connection,
 		if err := rows.Scan(&d.AppCode, &d.AppCoreID, &d.Type, &d.ObjectID,
 			&d.Object, &d.Hash, &d.Deleted, &d.Status,
 			&d.CreatedOn, &d.UpdatedOn); err != nil {
-			return nil, 0, e.Wrap(err, e.Code0412, "04")
+			return nil, 0, e.W(err, ECode040C06)
 		}
 
 		if p.Handle != nil {
 			if err := p.Handle(d); err != nil {
-				return nil, 0, e.Wrap(err, e.Code0412, "05")
+				return nil, 0, e.W(err, ECode040C07)
 			}
 		} else {
 			dList = append(dList, d)
@@ -192,11 +204,11 @@ func DataGetByObjectID(db *sql.Connection, appCode model.AppCode,
 	})
 
 	if err != nil {
-		return nil, e.Wrap(err, e.Code0413, "01")
+		return nil, e.W(err, ECode040C08)
 	}
 
 	if len(dList) != 1 {
-		return nil, e.New(e.Code0413, "02", e.MsgDataDoesNotExist)
+		return nil, e.N(ECode040C09, e.MsgDataDoesNotExist)
 	}
 
 	return dList[0], nil
@@ -211,7 +223,7 @@ func DataSetStatusProcessing(db *sql.Connection) (err error) {
 
 	err = db.ExecUpdate(ub)
 	if err != nil {
-		return e.Wrap(err, e.Code0414, "02")
+		return e.W(err, ECode040C0A)
 	}
 
 	return nil
@@ -226,7 +238,7 @@ func DataSetStatusProcessed(db *sql.Connection) (err error) {
 
 	err = db.ExecUpdate(ub)
 	if err != nil {
-		return e.Wrap(err, e.Code0414, "02")
+		return e.W(err, ECode040C0B)
 	}
 
 	return nil

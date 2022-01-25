@@ -7,6 +7,10 @@ import (
 	"github.com/Skyrin/go-lib/e"
 )
 
+const (
+	ECode040A01 = e.Code040A + "01"
+)
+
 // ResponseList represents the notification service response
 type ResponseList struct {
 	ID        int        `json:"id"`
@@ -31,7 +35,7 @@ type Response struct {
 // responseErrors returns errors found in the response if any.  Can add other checks for errors
 func (nrl *ResponseList) responseErrors() error {
 	if !nrl.Success {
-		return e.New(e.Code040Q, "01", fmt.Sprintf("%+v", nrl))
+		return e.N(ECode040A01, fmt.Sprintf("%+v", nrl))
 	}
 
 	return nil

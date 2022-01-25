@@ -13,6 +13,16 @@ import (
 const (
 	DeploymentGrantTableName     = "arc_deployment_grant"
 	DeploymentGrantDefaultSortBy = "arc_deployment_grant_id"
+
+	ECode040Z01 = e.Code040Z + "01"
+	ECode040Z02 = e.Code040Z + "02"
+	ECode040Z03 = e.Code040Z + "03"
+	ECode040Z04 = e.Code040Z + "04"
+	ECode040Z05 = e.Code040Z + "05"
+	ECode040Z06 = e.Code040Z + "06"
+	ECode040Z07 = e.Code040Z + "07"
+	ECode040Z08 = e.Code040Z + "08"
+	ECode040Z09 = e.Code040Z + "09"
 )
 
 // DeploymentGrantGetParam get params
@@ -70,7 +80,7 @@ func DeploymentGrantInsert(db *sql.Connection, ip *DeploymentGrantInsertParam) (
 
 	id, err = db.ExecInsertReturningID(ib)
 	if err != nil {
-		return 0, e.Wrap(err, e.Code040W, "01")
+		return 0, e.W(err, ECode040Z02)
 	}
 
 	return id, nil
@@ -105,7 +115,7 @@ func DeploymentGrantUpdate(db *sql.Connection, id int, up *DeploymentGrantUpdate
 
 	err = db.ExecUpdate(ub)
 	if err != nil {
-		return e.Wrap(err, e.Code040X, "01")
+		return e.W(err, ECode040Z03)
 	}
 
 	return nil
@@ -141,13 +151,13 @@ func DeploymentGrantGet(db *sql.Connection,
 
 	stmt, bindList, err := sb.ToSql()
 	if err != nil {
-		return nil, 0, e.Wrap(err, e.Code040Y, "01")
+		return nil, 0, e.W(err, ECode040Z04)
 	}
 
 	if p.FlagCount {
 		row := db.QueryRow(strings.Replace(stmt, "{fields}", "count(*)", 1), bindList...)
 		if err := row.Scan(&count); err != nil {
-			return nil, 0, e.Wrap(err, e.Code040Y, "02",
+			return nil, 0, e.W(err, ECode040Z05,
 				fmt.Sprintf("stmt: %s", stmt))
 		}
 	}
@@ -167,7 +177,7 @@ func DeploymentGrantGet(db *sql.Connection,
 
 	rows, err := db.Query(stmt, bindList...)
 	if err != nil {
-		return nil, 0, e.Wrap(err, e.Code040Y, "03")
+		return nil, 0, e.W(err, ECode040Z06)
 	}
 	defer rows.Close()
 
@@ -177,7 +187,7 @@ func DeploymentGrantGet(db *sql.Connection,
 			&dg.CredentialID,
 			&dg.Token, &dg.TokenExpiry,
 			&dg.RefreshToken, &dg.RefreshTokenExpiry); err != nil {
-			return nil, 0, e.Wrap(err, e.Code040Y, "04")
+			return nil, 0, e.W(err, ECode040Z07)
 		}
 
 		dgList = append(dgList, dg)
@@ -194,11 +204,11 @@ func DeploymentGrantGetByToken(db *sql.Connection, token string) (dg *model.Depl
 	})
 
 	if err != nil {
-		return nil, e.Wrap(err, e.Code040Z, "01")
+		return nil, e.W(err, ECode040Z08)
 	}
 
 	if len(dgList) != 1 {
-		return nil, e.New(e.Code040Z, "01", e.MsgGrantDoesNotExist)
+		return nil, e.N(ECode040Z01, e.MsgGrantDoesNotExist)
 	}
 
 	return dgList[0], nil
@@ -210,7 +220,7 @@ func DeploymentGrantPurgeByToken(db *sql.Connection, token string) (err error) {
 		Where("arc_deployment_grant_token=?", token)
 
 	if err := db.ExecDelete(delB); err != nil {
-		return e.Wrap(err, e.Code0410, "01")
+		return e.W(err, ECode040Z09)
 	}
 
 	return nil

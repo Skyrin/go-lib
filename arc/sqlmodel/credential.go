@@ -12,6 +12,13 @@ import (
 const (
 	CredentialTableName     = "arc_credential"
 	CredentialDefaultSortBy = "arc_credential_id"
+
+	ECode040B01 = e.Code040B + "01"
+	ECode040B02 = e.Code040B + "02"
+	ECode040B03 = e.Code040B + "03"
+	ECode040B04 = e.Code040B + "04"
+	ECode040B05 = e.Code040B + "05"
+	ECode040B06 = e.Code040B + "06"
 )
 
 // UserGetParam model
@@ -49,13 +56,13 @@ func CredentialGet(db *sql.Connection,
 
 	stmt, bindList, err := sb.ToSql()
 	if err != nil {
-		return nil, 0, e.Wrap(err, e.Code040R, "01")
+		return nil, 0, e.W(err, ECode040B01)
 	}
 
 	if p.FlagCount {
 		row := db.QueryRow(strings.Replace(stmt, "{fields}", "count(*)", 1), bindList...)
 		if err := row.Scan(&count); err != nil {
-			return nil, 0, e.Wrap(err, e.Code040R, "02",
+			return nil, 0, e.W(err, ECode040B02,
 				fmt.Sprintf("CredentialGet.2 | stmt: %s, bindList: %+v",
 					stmt, bindList))
 		}
@@ -76,7 +83,7 @@ func CredentialGet(db *sql.Connection,
 
 	rows, err := db.Query(stmt, bindList...)
 	if err != nil {
-		return nil, 0, e.Wrap(err, e.Code040R, "03")
+		return nil, 0, e.W(err, ECode040B03)
 	}
 	defer rows.Close()
 
@@ -84,7 +91,7 @@ func CredentialGet(db *sql.Connection,
 		c := &model.Credential{}
 		if err := rows.Scan(&c.ID, &c.DeploymentID, &c.Name,
 			&c.ClientID, &c.ClientSecret); err != nil {
-			return nil, 0, e.Wrap(err, e.Code040R, "04")
+			return nil, 0, e.W(err, ECode040B04)
 		}
 
 		cList = append(cList, c)
@@ -101,11 +108,11 @@ func CredentialGetByID(db *sql.Connection, id int) (c *model.Credential, err err
 	})
 
 	if err != nil {
-		return nil, e.Wrap(err, e.Code040S, "01")
+		return nil, e.W(err, ECode040B05)
 	}
 
 	if len(cList) != 1 {
-		return nil, e.New(e.Code040S, "01", e.MsgCredentialDoesNotExist)
+		return nil, e.N(ECode040B06, e.MsgCredentialDoesNotExist)
 	}
 
 	return cList[0], nil
