@@ -10,6 +10,22 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const (
+	ECode030101 = e.Code0301 + "01"
+	ECode030102 = e.Code0301 + "02"
+	ECode030103 = e.Code0301 + "03"
+	ECode030104 = e.Code0301 + "04"
+	ECode030105 = e.Code0301 + "05"
+	ECode030106 = e.Code0301 + "06"
+	ECode030107 = e.Code0301 + "07"
+	ECode030108 = e.Code0301 + "08"
+	ECode030109 = e.Code0301 + "09"
+	ECode03010A = e.Code0301 + "0A"
+	ECode03010B = e.Code0301 + "0B"
+	ECode03010C = e.Code0301 + "0C"
+	ECode03010D = e.Code0301 + "0D"
+)
+
 // Processor is used to create a singleton process. It ensures only
 // one process is running at a time.
 type Processor struct {
@@ -41,7 +57,7 @@ func NewProcessor(db *sql.Connection) (p *Processor) {
 func (p *Processor) Register(code, name string, f func() error) (err error) {
 	// Only allow registering a code once
 	if _, ok := p.runList[code]; ok {
-		return e.New(e.Code0609, "01",
+		return e.N(ECode030101,
 			fmt.Sprintf("process '%s' already registered", code))
 	}
 
@@ -54,7 +70,7 @@ func (p *Processor) Register(code, name string, f func() error) (err error) {
 
 	id, err := sqlmodel.ProcessUpsert(p.db, mp)
 	if err != nil {
-		return e.Wrap(err, e.Code0609, "02")
+		return e.W(err, ECode030102)
 	}
 	mp.ID = id
 
@@ -75,7 +91,7 @@ func (p *Processor) Register(code, name string, f func() error) (err error) {
 func (p *Processor) Deregister(code string) (err error) {
 	// Remove the record from the process table
 	if err := sqlmodel.ProcessDelete(p.db, code); err != nil {
-		return e.Wrap(err, e.Code060C, "01")
+		return e.W(err, ECode030103)
 	}
 
 	// If it is in the runList, remove it
@@ -89,63 +105,63 @@ func (p *Processor) Deregister(code string) (err error) {
 func (p *Processor) Run(code string) (err error) {
 	r, ok := p.runList[code]
 	if !ok {
-		return e.New(e.Code060A, "01",
+		return e.N(ECode030104,
 			fmt.Sprintf("process '%s' was not registered", code))
 	}
 
 	// Lock the process to this run
 	dbLock, err := p.db.BeginReturnDB()
 	if err != nil {
-		return e.Wrap(err, e.Code060A, "02")
+		return e.W(err, ECode030105)
 	}
 	defer dbLock.RollbackIfInTxn()
 
 	// Establish the lock
 	if _, _, err := sqlmodel.ProcessGet(dbLock, &sqlmodel.ProcessGetParam{
-		Code:            &r.process.Code,
+		Code:                 &r.process.Code,
 		ForNoKeyUpdateNoWait: true,
 	}); err != nil {
-		return e.Wrap(err, e.Code060A, "03")
+		return e.W(err, ECode030106)
 	}
 
 	// Set status of process to running (this will lock the process)
 	if err := sqlmodel.ProcessSetStatusByCode(dbLock, r.process.Code,
 		model.ProcessStatusRunning); err != nil {
 
-		return e.Wrap(err, e.Code060A, "04")
+		return e.W(err, ECode030107)
 	}
 
 	// Create a new process run record
 	runID, err := sqlmodel.ProcessRunCreate(p.db, r.process.ID)
 	if err != nil {
-		return e.Wrap(err, e.Code060A, "05")
+		return e.W(err, ECode030108)
 	}
 
 	if err := r.f(); err != nil {
 		// Set run status to failed, ignore error as we can't do much if
 		// it fails and we want to return the originating error
 		if err2 := sqlmodel.ProcessRunFail(p.db, runID, err.Error()); err2 != nil {
-			log.Warn().Err(e.Wrap(err2, e.Code060A, "0A"))
+			log.Warn().Err(e.W(err2, ECode030109))
 		}
 
-		return e.Wrap(err, e.Code060A, "06")
+		return e.W(err, ECode03010A)
 	}
 
 	// Set status of run to completed
 	if err := sqlmodel.ProcessRunComplete(p.db, runID, ""); err != nil {
-		return e.Wrap(err, e.Code060A, "07")
+		return e.W(err, ECode03010B)
 	}
 
 	// Reset the status of the process to ready
 	if err := sqlmodel.ProcessSetStatusByCode(dbLock,
 		r.process.Code, model.ProcessStatusReady); err != nil {
 
-		return e.Wrap(err, e.Code060A, "08")
+		return e.W(err, ECode03010C)
 	}
 
 	// Release the lock on this process
 	if err := dbLock.Commit(); err != nil {
-		return e.Wrap(err, e.Code060A, "09")
+		return e.W(err, ECode03010D)
 	}
 
 	return nil

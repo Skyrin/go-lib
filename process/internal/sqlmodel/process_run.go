@@ -11,6 +11,14 @@ import (
 const (
 	// ProcessRunTable
 	ProcessRunTable = "process_run"
+
+	ECode030301 = e.Code0303 + "01"
+	ECode030302 = e.Code0303 + "02"
+	ECode030303 = e.Code0303 + "03"
+	ECode030304 = e.Code0303 + "04"
+	ECode030305 = e.Code0303 + "05"
+	ECode030306 = e.Code0303 + "06"
+	ECode030307 = e.Code0303 + "07"
 )
 
 // ProcessRunGetParam get params
@@ -47,7 +55,7 @@ func ProcessRunGet(db *sql.Connection, p *ProcessRunGetParam) (dList []*model.Pr
 		// Get the count before applying an offset if there is one
 		count, err = db.QueryCount(sb)
 		if err != nil {
-			return nil, 0, e.Wrap(err, e.Code0601, "01")
+			return nil, 0, e.W(err, ECode030301)
 		}
 	}
 
@@ -60,14 +68,14 @@ func ProcessRunGet(db *sql.Connection, p *ProcessRunGetParam) (dList []*model.Pr
 	// Perform the query
 	rows, err := db.ToSQLWFieldAndQuery(sb, fields)
 	if err != nil {
-		return nil, 0, e.Wrap(err, e.Code0601, "02")
+		return nil, 0, e.W(err, ECode030302)
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		d := &model.ProcessRun{}
 		if err := rows.Scan(&d.ID, &d.ProcessID, &d.Status, &d.Error, &d.CreatedOn, &d.UpdatedOn); err != nil {
-			return nil, 0, e.Wrap(err, e.Code0601, "03")
+			return nil, 0, e.W(err, ECode030303)
 		}
 
 		dList = append(dList, d)
@@ -84,7 +92,7 @@ func ProcessRunCreate(db *sql.Connection, processID int) (id int, err error) {
 		Suffix("RETURNING process_run_id")
 	id, err = db.ExecInsertReturningID(sb)
 	if err != nil {
-		return 0, e.Wrap(err, e.Code0602, "01")
+		return 0, e.W(err, ECode030304)
 	}
 
 	return id, nil
@@ -98,7 +106,7 @@ func ProcessRunComplete(db *sql.Connection, id int, msg string) (err error) {
 		Where("process_run_id = ?", id)
 
 	if err := db.ExecUpdate(ub); err != nil {
-		return e.Wrap(err, e.Code0603, "01")
+		return e.W(err, ECode030305)
 	}
 
 	return nil
@@ -112,7 +120,7 @@ func ProcessRunFail(db *sql.Connection, id int, msg string) (err error) {
 		Where("process_run_id = ?", id)
 
 	if err := db.ExecUpdate(ub); err != nil {
-		return e.Wrap(err, e.Code0604, "01")
+		return e.W(err, ECode030301)
 	}
 
 	return nil
@@ -125,12 +133,12 @@ func ProcessRunDelete(db *sql.Connection, id int, msg string) (err error) {
 
 	stmt, bindList, err := d.ToSql()
 	if err != nil {
-		return e.Wrap(err, e.Code0605, "01",
+		return e.W(err, ECode030306,
 			fmt.Sprintf("bind: %+v", bindList))
 	}
 
 	if _, err := db.Exec(stmt, bindList...); err != nil {
-		return e.Wrap(err, e.Code0605, "02",
+		return e.W(err, ECode030307,
 			fmt.Sprintf("bindList: %+v", bindList))
 	}
 

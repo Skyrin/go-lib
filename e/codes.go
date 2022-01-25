@@ -66,6 +66,11 @@ const (
 	//package: http
 	// Code0301 = "0301"
 
+	// package: process
+	Code0301 = "0301" // package:process | process/process.go
+	Code0302 = "0302" // package:sqlmodel | process/internal/sqlmodel/process.go
+	Code0303 = "0303" // package:sqlmodel | process/internal/sqlmodel/process_run.go
+
 	//package: arc
 	Code0401 = "0401"
 	Code0402 = "0402"
@@ -129,18 +134,4 @@ const (
 	Code050G = "050G"
 	Code050H = "050H"
 	Code050I = "050I"
-
-	// package: process*
-	Code0601 = "0601"
-	Code0602 = "0602"
-	Code0603 = "0603"
-	Code0604 = "0604"
-	Code0605 = "0605"
-	Code0606 = "0606"
-	Code0607 = "0607"
-	Code0608 = "0608"
-	Code0609 = "0609"
-	Code060A = "060A"
-	Code060B = "060B"
-	Code060C = "060C"
 )
