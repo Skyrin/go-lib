@@ -32,7 +32,7 @@ import (
 // Embed the migrations into the app, so that applications that include this
 // package can run the upgrade if using this functionality
 
-//go:embed db/migrations/*
+//go:embed db/migrations/*.sql
 var migrations embed.FS
 
 const (

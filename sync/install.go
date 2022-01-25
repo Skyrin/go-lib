@@ -6,7 +6,7 @@ import (
 	"github.com/Skyrin/go-lib/migration"
 )
 
-//go:embed db/migrations/*
+//go:embed db/migrations/*.sql
 var migrations embed.FS
 
 const (
