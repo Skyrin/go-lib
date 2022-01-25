@@ -39,6 +39,22 @@ const (
 	MIGRATION_TABLE = "skyrin_migration"
 	MIGRATION_PATH  = "db/migrations"
 	MIGRATION_CODE  = "migration"
+
+	ECode000101 = e.Code0001 + "01"
+	ECode000102 = e.Code0001 + "02"
+	ECode000103 = e.Code0001 + "03"
+	ECode000104 = e.Code0001 + "04"
+	ECode000105 = e.Code0001 + "05"
+	ECode000106 = e.Code0001 + "06"
+	ECode000107 = e.Code0001 + "07"
+	ECode000108 = e.Code0001 + "08"
+	ECode000109 = e.Code0001 + "09"
+	ECode00010A = e.Code0001 + "0A"
+	ECode00010B = e.Code0001 + "0B"
+	ECode00010C = e.Code0001 + "0C"
+	ECode00010D = e.Code0001 + "0D"
+	ECode00010E = e.Code0001 + "0E"
+	ECode00010F = e.Code0001 + "0F"
 )
 
 type Migrator struct {
@@ -61,14 +77,14 @@ func NewMigrator(db *sql.Connection) (m *Migrator, err error) {
 	}
 	if err := m.AddMigrationList(ml); err != nil {
 		if !e.ContainsError(err, e.MsgMigrationNotInstalled) {
-			return nil, e.Wrap(err, e.Code0003, "01")
+			return nil, e.W(err, ECode000101)
 		}
 		if err := m.install(ml); err != nil {
-			return nil, e.Wrap(err, e.Code0003, "02")
+			return nil, e.W(err, ECode000102)
 		}
 		// Try to add again now that the migrator is installed
 		if err := m.AddMigrationList(ml); err != nil {
-			return nil, e.Wrap(err, e.Code0003, "03")
+			return nil, e.W(err, ECode000103)
 		}
 	}
 
@@ -84,7 +100,7 @@ func (m *Migrator) AddMigrationList(ml *List) (err error) {
 		// migrations for the specified code yet, then return a place holder
 		// Otherwise, return the error now
 		if !e.ContainsError(err, e.MsgMigrationNone) {
-			return e.Wrap(err, e.Code0004, "01")
+			return e.W(err, ECode000104)
 		}
 
 		// If no migrations exist, then this is a brand new installation
@@ -104,7 +120,7 @@ func (m *Migrator) AddMigrationList(ml *List) (err error) {
 
 	ml.files, err = ml.GetLatestMigrationFiles(mm.Version)
 	if err != nil {
-		return e.Wrap(err, e.Code0004, "02")
+		return e.W(err, ECode000105)
 	}
 
 	m.migrations = append(m.migrations, ml)
@@ -118,16 +134,16 @@ func (m *Migrator) install(ml *List) (err error) {
 
 	files, err := ml.GetLatestMigrationFiles(0)
 	if err != nil {
-		return e.Wrap(err, e.Code0005, "01")
+		return e.W(err, ECode000106)
 	}
 
 	if len(files) == 0 {
-		return e.New(e.Code0005, "02", e.MsgMigrationInstallFailed)
+		return e.N(ECode000107, e.MsgMigrationInstallFailed)
 	}
 
 	// Only run the first migration, the rest will be run via regular upgrade
 	if _, err := m.db.Exec(string(files[0].SQL)); err != nil {
-		return e.Wrap(err, e.Code0005, "03")
+		return e.W(err, ECode000108)
 	}
 
 	return nil
@@ -142,7 +158,7 @@ func (m *Migrator) Upgrade() (err error) {
 			// Check if this file should be run or not
 			id, run, err := m.checkShouldRunFile(ml, f)
 			if err != nil {
-				return e.Wrap(err, e.Code0006, "01")
+				return e.W(err, ECode000109)
 			}
 			if !run {
 				// If it shouldn't run, then skip it
@@ -150,7 +166,7 @@ func (m *Migrator) Upgrade() (err error) {
 			}
 
 			if err := m.processFile(id, ml, f); err != nil {
-				return e.Wrap(err, e.Code0006, "02")
+				return e.W(err, ECode00010A)
 			}
 		}
 	}
@@ -169,7 +185,7 @@ func (m *Migrator) checkShouldRunFile(ml *List, f *File) (id int, shouldRun bool
 	if err != nil {
 		// Return error if it is not e.MsgMigrationCodeVersionDNE
 		if !e.ContainsError(err, e.MsgMigrationCodeVersionDNE) {
-			return 0, false, e.Wrap(err, e.Code0007, "01")
+			return 0, false, e.W(err, ECode00010B)
 		}
 
 		// If we didn't try to process it, then insert it now
@@ -181,7 +197,7 @@ func (m *Migrator) checkShouldRunFile(ml *List, f *File) (id int, shouldRun bool
 			Err:     "",
 		})
 		if err != nil {
-			return 0, false, e.Wrap(err, e.Code0007, "02")
+			return 0, false, e.W(err, ECode00010C)
 		}
 	} else {
 		id = mm.ID
@@ -206,9 +222,9 @@ func (m *Migrator) processFile(id int, ml *List, f *File) (err error) {
 			Status: &status,
 			Err:    &errMsg,
 		}); err2 != nil {
-			return e.Wrap(err, e.Code0008, "01")
+			return e.W(err, ECode00010D)
 		}
-		return e.Wrap(err, e.Code0008, "02")
+		return e.W(err, ECode00010E)
 	}
 
 	status = model.MIGRATION_STATUS_COMPLETE
@@ -217,7 +233,7 @@ func (m *Migrator) processFile(id int, ml *List, f *File) (err error) {
 		Status: &status,
 		Err:    &errMsg,
 	}); err != nil {
-		return e.Wrap(err, e.Code0008, "03")
+		return e.W(err, ECode00010F)
 	}
 
 	log.Info().Msgf("successfully migrated '%s' to version: %v",

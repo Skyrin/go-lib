@@ -7,6 +7,11 @@ import (
 	"github.com/Skyrin/go-lib/e"
 )
 
+const (
+	ECode020201 = e.Code0202 + "01"
+	ECode020202 = e.Code0202 + "02"
+)
+
 // Row a wrapper struct for sql.Row, so error handling can happen
 type Row struct {
 	row   *sql.Row
@@ -16,7 +21,7 @@ type Row struct {
 // Scan wrapper for row's Scan, which returns an extended error instead
 func (r *Row) Scan(dest ...interface{}) error {
 	if err := r.row.Scan(dest...); err != nil {
-		return e.Wrap(err, e.Code020C, "01", fmt.Sprintf("query: %s", r.query))
+		return e.W(err, ECode020201, fmt.Sprintf("query: %s", r.query))
 	}
 
 	return nil
@@ -29,5 +34,5 @@ func (r *Row) Err() error {
 		return nil
 	}
 
-	return e.Wrap(err, e.Code020D, "01", fmt.Sprintf("query: %s", r.query))
+	return e.W(err, ECode020202, fmt.Sprintf("query: %s", r.query))
 }

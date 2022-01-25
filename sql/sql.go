@@ -16,6 +16,36 @@ import (
 	_ "github.com/lib/pq"
 )
 
+const (
+	ECode020301 = e.Code0203 + "01"
+	ECode020302 = e.Code0203 + "02"
+	ECode020303 = e.Code0203 + "03"
+	ECode020304 = e.Code0203 + "04"
+	ECode020305 = e.Code0203 + "05"
+	ECode020306 = e.Code0203 + "06"
+	ECode020307 = e.Code0203 + "07"
+	ECode020308 = e.Code0203 + "08"
+	ECode020309 = e.Code0203 + "09"
+	ECode02030A = e.Code0203 + "0A"
+	ECode02030B = e.Code0203 + "0B"
+	ECode02030C = e.Code0203 + "0C"
+	ECode02030D = e.Code0203 + "0D"
+	ECode02030E = e.Code0203 + "0E"
+	ECode02030F = e.Code0203 + "0F"
+	ECode02030G = e.Code0203 + "0G"
+	ECode02030H = e.Code0203 + "0H"
+	ECode02030I = e.Code0203 + "0I"
+	ECode02030J = e.Code0203 + "0J"
+	ECode02030K = e.Code0203 + "0K"
+	ECode02030L = e.Code0203 + "0L"
+	ECode02030M = e.Code0203 + "0M"
+	ECode02030N = e.Code0203 + "0N"
+	ECode02030O = e.Code0203 + "0O"
+	ECode02030P = e.Code0203 + "0P"
+	ECode02030Q = e.Code0203 + "0Q"
+	ECode02030R = e.Code0203 + "0R"
+)
+
 // Connection wrapper of the *sql.DB
 // If a transaction is started, it is stored internally in the txn and automatically
 // used when making DB calls until commit/rollback is executed. If during a txn, a
@@ -82,11 +112,11 @@ func GetConnParamFromJSONConfig(configPath string) (cp *ConnParam, err error) {
 
 	b, err := os.ReadFile(configPath)
 	if err != nil {
-		return nil, e.Wrap(err, e.Code020O, "01", err.Error(), configPath)
+		return nil, e.W(err, ECode020301, err.Error(), configPath)
 	}
 
 	if err := json.Unmarshal(b, cp); err != nil {
-		return nil, e.Wrap(err, e.Code020O, "02", err.Error())
+		return nil, e.W(err, ECode020302, err.Error())
 	}
 
 	if cp.SSLMode != "" {
@@ -145,10 +175,10 @@ func NewPostgresConn(cp *ConnParam) (conn *Connection, err error) {
 	//TODO: handle errors better
 	sqlConn, err := sql.Open("postgres", GetConnectionStr(cp))
 	if err != nil {
-		return nil, e.WrapWithMsg(err, e.Code0201, "01", "Failed to connect to DB")
+		return nil, e.WWM(err, ECode020303, "Failed to connect to DB")
 	}
 	if err := sqlConn.Ping(); err != nil {
-		return nil, e.WrapWithMsg(err, e.Code0201, "02", "Failed to ping DB")
+		return nil, e.WWM(err, ECode020304, "Failed to ping DB")
 	}
 
 	return &Connection{DB: sqlConn, Slug: NewSlug(nil)}, nil
@@ -167,11 +197,11 @@ func (c *Connection) Txn() *sql.Tx {
 // If txn is not nil (already in a txn), it will return an error
 func (c *Connection) BeginUseDefaultTxn() (err error) {
 	if c.txn != nil {
-		return e.Wrap(nil, e.Code020N, "01")
+		return e.W(nil, ECode020305)
 	}
 	txn, err := c.DB.Begin()
 	if err != nil {
-		return e.Wrap(err, e.Code020N, "02")
+		return e.W(err, ECode020306)
 	}
 
 	c.txn = &Txn{
@@ -187,7 +217,7 @@ func (c *Connection) BeginUseDefaultTxn() (err error) {
 func (c *Connection) BeginReturnDB() (db *Connection, err error) {
 	txn, err := c.DB.Begin()
 	if err != nil {
-		return nil, e.Wrap(err, e.Code020H, "01")
+		return nil, e.W(err, ECode020307)
 	}
 
 	c.txnIdx = c.txnIdx + 1
@@ -210,11 +240,11 @@ func (c *Connection) BeginReturnDB() (db *Connection, err error) {
 // called within a go routine
 func (c *Connection) Begin() (err error) {
 	if c.txn != nil {
-		return e.WrapWithMsg(nil, e.Code0202, "01", "in a txn")
+		return e.WWM(nil, ECode020308, "in a txn")
 	}
 	txn, err := c.DB.Begin()
 	if err != nil {
-		return e.Wrap(err, e.Code0202, "02")
+		return e.W(err, ECode020309)
 	}
 
 	c.txn = &Txn{
@@ -227,11 +257,11 @@ func (c *Connection) Begin() (err error) {
 // Commit wrapper for sql.Commit. If successfull, will unset the txn object
 func (c *Connection) Commit() (err error) {
 	if c.txn == nil {
-		return e.WrapWithMsg(nil, e.Code0203, "01", "not in a txn")
+		return e.WWM(nil, ECode02030A, "not in a txn")
 	}
 
 	if err = c.txn.Commit(); err != nil {
-		return e.Wrap(err, e.Code0203, "02")
+		return e.W(err, ECode02030B)
 	}
 
 	c.txn = nil
@@ -257,14 +287,14 @@ func (c *Connection) Rollback() {
 		log.Warn().Msg("[Connection.Rollback.1] not in txn")
 		return
 		// TODO: replace with this (Rollback needs to return an error)
-		// return e.Wrap(nil, "Connection.Rollback.1 - not in txn", "")
+		// return e.W(nil, "Connection.Rollback.1 - not in txn", "")
 	}
 
 	if err := c.txn.Rollback(); err != nil {
 		log.Error().Err(err).Msg("[Connection.Rollback.2]")
 		return
 		// TODO: replace with this (Rollback needs to return an error)
-		// return e.Wrap(err, "Connection.Rollback.2", "")
+		// return e.W(err, "Connection.Rollback.2", "")
 	}
 
 	c.txn = nil
@@ -277,7 +307,7 @@ func (c *Connection) Query(query string, args ...interface{}) (rows *Rows, err e
 		if err != nil {
 			// Not logging args because it may contain sensitive information. The
 			// caller can log them if needed
-			return nil, e.Wrap(err, e.Code0204, "01", fmt.Sprintf("query: %s\n", query))
+			return nil, e.W(err, ECode02030C, fmt.Sprintf("query: %s\n", query))
 		}
 		return rows, nil
 	}
@@ -286,7 +316,7 @@ func (c *Connection) Query(query string, args ...interface{}) (rows *Rows, err e
 	if err != nil {
 		// Not logging args because it may contain sensitive information. The
 		// caller can log them if needed
-		return nil, e.Wrap(err, e.Code0204, "02", fmt.Sprintf("query: %s\n", query))
+		return nil, e.W(err, ECode02030D, fmt.Sprintf("query: %s\n", query))
 	}
 
 	return &Rows{
@@ -304,7 +334,7 @@ func (c *Connection) Exec(query string, args ...interface{}) (res sql.Result, er
 	if err != nil {
 		// Not logging args because it may contain sensitive information. The
 		// caller can log them if needed
-		return nil, e.Wrap(err, e.Code0205, "01", fmt.Sprintf("query: %s\n", query))
+		return nil, e.W(err, ECode02030E, fmt.Sprintf("query: %s\n", query))
 	}
 
 	return res, nil
@@ -353,14 +383,14 @@ func (c *Connection) ToSQLAndQuery(sb sq.SelectBuilder) (rows *Rows, err error) 
 	if err != nil {
 		// Not logging args because it may contain sensitive information. The
 		// caller can log them if needed
-		return nil, e.Wrap(err, e.Code0206, "01", fmt.Sprintf("stmt: %s\n", stmt))
+		return nil, e.W(err, ECode02030F, fmt.Sprintf("stmt: %s\n", stmt))
 	}
 
 	sqlRows, err := c.DB.Query(stmt, bindList...)
 	if err != nil {
 		// Not logging args because it may contain sensitive information. The
 		// caller can log them if needed
-		return nil, e.Wrap(err, e.Code0206, "02", fmt.Sprintf("stmt: %s\n", stmt))
+		return nil, e.W(err, ECode02030G, fmt.Sprintf("stmt: %s\n", stmt))
 	}
 
 	return &Rows{
@@ -376,7 +406,7 @@ func (c *Connection) ToSQLAndQueryRow(sb sq.SelectBuilder) (row *Row, err error)
 	if err != nil {
 		// Not logging args because it may contain sensitive information. The
 		// caller can log them if needed
-		return nil, e.Wrap(err, e.Code0207, "01", fmt.Sprintf("stmt: %s\n", stmt))
+		return nil, e.W(err, ECode02030H, fmt.Sprintf("stmt: %s\n", stmt))
 	}
 
 	return c.QueryRow(stmt, bindList...), nil
@@ -388,13 +418,13 @@ func (c *Connection) ExecInsert(ib sq.InsertBuilder) (err error) {
 	if err != nil {
 		// Not logging args because it may contain sensitive information. The
 		// caller can log them if needed
-		return e.Wrap(err, e.Code0208, "01", fmt.Sprintf("stmt: %s\n", stmt))
+		return e.W(err, ECode02030I, fmt.Sprintf("stmt: %s\n", stmt))
 	}
 
 	if _, err := c.Exec(stmt, bindList...); err != nil {
 		// Not logging args because it may contain sensitive information. The
 		// caller can log them if needed
-		return e.Wrap(err, e.Code0208, "02")
+		return e.W(err, ECode02030J)
 	}
 
 	return nil
@@ -406,13 +436,13 @@ func (c *Connection) ExecUpdate(ub sq.UpdateBuilder) (err error) {
 	if err != nil {
 		// Not logging args because it may contain sensitive information. The
 		// caller can log them if needed
-		return e.Wrap(err, e.Code0209, "01", fmt.Sprintf("stmt: %s\n", stmt))
+		return e.W(err, ECode02030K, fmt.Sprintf("stmt: %s\n", stmt))
 	}
 
 	if _, err := c.Exec(stmt, bindList...); err != nil {
 		// Not logging args because it may contain sensitive information. The
 		// caller can log them if needed
-		return e.Wrap(err, e.Code0209, "02")
+		return e.W(err, ECode02030L)
 	}
 
 	return nil
@@ -424,13 +454,13 @@ func (c *Connection) ExecDelete(delB sq.DeleteBuilder) (err error) {
 	if err != nil {
 		// Not logging args because it may contain sensitive information. The
 		// caller can log them if needed
-		return e.Wrap(err, e.Code020A, "01", fmt.Sprintf("stmt: %s\n", stmt))
+		return e.W(err, ECode02030M, fmt.Sprintf("stmt: %s\n", stmt))
 	}
 
 	if _, err := c.Exec(stmt, bindList...); err != nil {
 		// Not logging args because it may contain sensitive information. The
 		// caller can log them if needed
-		return e.Wrap(err, e.Code020A, "02")
+		return e.W(err, ECode02030N)
 	}
 
 	return nil
@@ -442,14 +472,14 @@ func (c *Connection) ExecInsertReturningID(ib sq.InsertBuilder) (id int, err err
 	if err != nil {
 		// Not logging args because it may contain sensitive information. The
 		// caller can log them if needed
-		return 0, e.Wrap(err, e.Code020B, "01", fmt.Sprintf("stmt: %s\n", stmt))
+		return 0, e.W(err, ECode02030O, fmt.Sprintf("stmt: %s\n", stmt))
 	}
 
 	if err := c.QueryRow(stmt, bindList...).Scan(&id); err != nil {
 		// Not logging args because it may contain sensitive information. The
 		// caller can log them if needed
 		// The "query" is logged in Scan, so no need to add here
-		return 0, e.Wrap(err, e.Code020B, "02")
+		return 0, e.W(err, ECode02030P)
 	}
 
 	return id, nil
@@ -462,13 +492,13 @@ func (c *Connection) ExecInsertReturningID(ib sq.InsertBuilder) (id int, err err
 func (c *Connection) ToSQLWFieldAndQuery(sb sq.SelectBuilder, fields string) (rows *Rows, err error) {
 	stmt, bindParams, err := sb.ToSql()
 	if err != nil {
-		return nil, e.Wrap(err, e.Code020U, "01")
+		return nil, e.W(err, ECode02030Q)
 	}
 
 	stmt = strings.Replace(stmt, FieldPlaceHolder, fields, 1)
 	rows, err = c.Query(stmt, bindParams...)
 	if err != nil {
-		return nil, e.Wrap(err, e.Code020U, "02",
+		return nil, e.W(err, ECode02030R,
 			fmt.Sprintf("bindParams: %+v", bindParams))
 	}
 

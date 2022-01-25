@@ -12,6 +12,14 @@ import (
 const (
 	DeploymentTableName     = "arc_deployment"
 	DeploymentDefaultSortBy = "arc_deployment_id"
+
+	ECode040D01 = e.Code040D + "01"
+	ECode040D02 = e.Code040D + "02"
+	ECode040D03 = e.Code040D + "03"
+	ECode040D04 = e.Code040D + "04"
+	ECode040D05 = e.Code040D + "05"
+	ECode040D06 = e.Code040D + "06"
+	ECode040D07 = e.Code040D + "07"
 )
 
 // UserGetParam model
@@ -61,7 +69,7 @@ func DeploymentUpdate(db *sql.Connection, id int, dup *DeploymentUpdateParam) (e
 
 	err = db.ExecUpdate(ub)
 	if err != nil {
-		return e.Wrap(err, e.Code040T, "01")
+		return e.W(err, ECode040D01)
 	}
 
 	return nil
@@ -95,13 +103,13 @@ func DeploymentGet(db *sql.Connection,
 
 	stmt, bindList, err := sb.ToSql()
 	if err != nil {
-		return nil, 0, e.Wrap(err, e.Code040U, "01")
+		return nil, 0, e.W(err, ECode040D02)
 	}
 
 	if p.FlagCount {
 		row := db.QueryRow(strings.Replace(stmt, "{fields}", "count(*)", 1), bindList...)
 		if err := row.Scan(&count); err != nil {
-			return nil, 0, e.Wrap(err, e.Code040U, "02",
+			return nil, 0, e.W(err, ECode040D03,
 				fmt.Sprintf("stmt: %s, bindList: %+v", stmt, bindList))
 		}
 	}
@@ -121,7 +129,7 @@ func DeploymentGet(db *sql.Connection,
 
 	rows, err := db.Query(stmt, bindList...)
 	if err != nil {
-		return nil, 0, e.Wrap(err, e.Code040U, "03")
+		return nil, 0, e.W(err, ECode040D04)
 	}
 	defer rows.Close()
 
@@ -133,7 +141,7 @@ func DeploymentGet(db *sql.Connection,
 			&d.Token, &d.TokenExpiry,
 			&d.RefreshToken, &d.RefreshTokenExpiry,
 			&d.LogEventCode, &d.LogPublishKey); err != nil {
-			return nil, 0, e.Wrap(err, e.Code040U, "04")
+			return nil, 0, e.W(err, ECode040D05)
 		}
 
 		dList = append(dList, d)
@@ -150,11 +158,11 @@ func DeploymentGetByCode(db *sql.Connection, code string) (d *model.Deployment, 
 	})
 
 	if err != nil {
-		return nil, e.Wrap(err, e.Code040V, "01")
+		return nil, e.W(err, ECode040D06)
 	}
 
 	if len(dList) != 1 {
-		return nil, e.New(e.Code040V, "02", e.MsgDeploymentDoesNotExist)
+		return nil, e.N(ECode040D07, e.MsgDeploymentDoesNotExist)
 	}
 
 	return dList[0], nil

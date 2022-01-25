@@ -8,6 +8,20 @@ import (
 	"github.com/Skyrin/go-lib/e"
 )
 
+const (
+	ECode040801 = e.Code0408 + "01"
+	ECode040802 = e.Code0408 + "02"
+	ECode040803 = e.Code0408 + "03"
+	ECode040804 = e.Code0408 + "04"
+	ECode040805 = e.Code0408 + "05"
+	ECode040806 = e.Code0408 + "06"
+	ECode040807 = e.Code0408 + "07"
+	ECode040808 = e.Code0408 + "08"
+	ECode040809 = e.Code0408 + "09"
+	ECode04080A = e.Code0408 + "0A"
+	ECode04080B = e.Code0408 + "0B"
+)
+
 // GrantUserinfo
 type GrantUserinfo struct {
 	ID         int    `json:"id"`
@@ -32,7 +46,7 @@ type GrantUserinfo struct {
 func (c *Client) GrantLogin(credentialID int, username, password string) (g *Grant, err error) {
 	credential, err := sqlmodel.CredentialGetByID(c.deployment.DB, credentialID)
 	if err != nil {
-		return nil, e.Wrap(err, e.Code0401, "01")
+		return nil, e.W(err, ECode040801)
 	}
 
 	params := []interface{}{
@@ -49,7 +63,7 @@ func (c *Client) GrantLogin(credentialID int, username, password string) (g *Gra
 
 	ca, err := c.getClientAuth()
 	if err != nil {
-		return nil, e.Wrap(err, e.Code0401, "02")
+		return nil, e.W(err, ECode040802)
 	}
 	res, err := c.sendSingleRequestItem(
 		c.deployment.getManageCoreServiceURL(),
@@ -57,20 +71,20 @@ func (c *Client) GrantLogin(credentialID int, username, password string) (g *Gra
 		ca)
 	if err != nil {
 		if e.ContainsError(err, E01FAAP_InvalidGrantLogin) {
-			return nil, e.New(e.Code0401, "07", e.MsgUnauthorized)
+			return nil, e.N(ECode040803, e.MsgUnauthorized)
 		}
-		return nil, e.Wrap(err, e.Code0401, "03")
+		return nil, e.W(err, ECode040804)
 	}
 
 	g = &Grant{}
 	if err := json.Unmarshal(res.Data, g); err != nil {
-		return nil, e.Wrap(err, e.Code0401, "04")
+		return nil, e.W(err, ECode040805)
 	}
 
 	// Get the arc user id associated with this token
 	gui, err := c.GrantUserinfo(g.Token)
 	if err != nil {
-		return nil, e.Wrap(err, e.Code0401, "05")
+		return nil, e.W(err, ECode040806)
 	}
 
 	// Save the grant in the arc_deployment_grant table.
@@ -93,7 +107,7 @@ func (c *Client) GrantLogin(credentialID int, username, password string) (g *Gra
 		RefreshToken:       g.RefreshToken,
 		RefreshTokenExpiry: g.RefreshTokenExpiry,
 	}); err != nil {
-		return nil, e.Wrap(err, e.Code0401, "06")
+		return nil, e.W(err, ECode040807)
 	}
 
 	return g, nil
@@ -121,12 +135,12 @@ func (c *Client) GrantUserinfo(accessToken string) (gui *GrantUserinfo, err erro
 			accessToken: accessToken,
 		})
 	if err != nil {
-		return nil, e.Wrap(err, e.Code0402, "01")
+		return nil, e.W(err, ECode040808)
 	}
 
 	gui = &GrantUserinfo{}
 	if err := json.Unmarshal(res.Data, gui); err != nil {
-		return nil, e.Wrap(err, e.Code0402, "02")
+		return nil, e.W(err, ECode040809)
 	}
 
 	return gui, nil
@@ -141,7 +155,7 @@ func (c *Client) GrantRevoke(accessToken string) (err error) {
 
 	// Purge the grant from the table
 	if err := sqlmodel.DeploymentGrantPurgeByToken(c.deployment.DB, accessToken); err != nil {
-		return e.Wrap(err, e.Code0403, "01")
+		return e.W(err, ECode04080A)
 	}
 
 	// Now revoke the grant in arc
@@ -163,7 +177,7 @@ func (c *Client) GrantRevoke(accessToken string) (err error) {
 		if e.ContainsError(err, E01F1A8_AuthorizationFailed) {
 			return nil
 		}
-		return e.Wrap(err, e.Code0403, "03",
+		return e.W(err, ECode04080B,
 			fmt.Sprintf("url: %s", c.deployment.getManageCoreServiceURL()))
 	}
 

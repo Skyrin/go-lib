@@ -6,6 +6,19 @@ import (
 	"github.com/Skyrin/go-lib/e"
 )
 
+const (
+	ECode020401 = e.Code0204 + "01"
+	ECode020402 = e.Code0204 + "02"
+	ECode020403 = e.Code0204 + "03"
+	ECode020404 = e.Code0204 + "04"
+	ECode020405 = e.Code0204 + "05"
+	ECode020406 = e.Code0204 + "06"
+	ECode020407 = e.Code0204 + "07"
+	ECode020408 = e.Code0204 + "08"
+	ECode020409 = e.Code0204 + "09"
+	ECode02040A = e.Code0204 + "0A"
+)
+
 // Status defines a status reference for a table/column combination. The table/column/id
 // should be unique (as well as the table/column/code).
 type Status struct {
@@ -27,12 +40,12 @@ func (db *Connection) SetStatusLoad(f func(*Connection) ([]*Status, error)) {
 // statusRefLoad loads all status ref entries into the statusMap
 func (db *Connection) statusRefLoad() (err error) {
 	if db.statusLoader == nil {
-		return e.New(e.Code020P, "01", "No status loader defined")
+		return e.N(ECode020401, "No status loader defined")
 	}
 
 	sList, err := db.statusLoader(db)
 	if err != nil {
-		return e.Wrap(err, e.Code020P, "02")
+		return e.W(err, ECode020402)
 	}
 
 	db.statusMap = make(map[string][]*Status, len(sList))
@@ -54,13 +67,13 @@ func statusGetKey(table, column string) (key string) {
 func (db *Connection) StatusGetByCode(table, column, code string) (s *Status, err error) {
 	if db.statusMap == nil {
 		if err := db.statusRefLoad(); err != nil {
-			return nil, e.Wrap(err, e.Code020Q, "01")
+			return nil, e.W(err, ECode020403)
 		}
 	}
 
 	tmpList, ok := db.statusMap[statusGetKey(table, column)]
 	if !ok {
-		return nil, e.New(e.Code020Q, "02",
+		return nil, e.N(ECode020404,
 			fmt.Sprintf("Invalid status table/column: %s/%s", table, column))
 	}
 
@@ -70,7 +83,7 @@ func (db *Connection) StatusGetByCode(table, column, code string) (s *Status, er
 		}
 	}
 
-	return nil, e.New(e.Code020Q, "03",
+	return nil, e.N(ECode020405,
 		fmt.Sprintf("Status does not exist: table: %s, col: %s, code: %s",
 			table, column, code))
 }
@@ -80,13 +93,13 @@ func (db *Connection) StatusGetByCode(table, column, code string) (s *Status, er
 func (db *Connection) StatusGetByID(table, column string, id int) (s *Status, err error) {
 	if db.statusMap == nil {
 		if err := db.statusRefLoad(); err != nil {
-			return nil, e.Wrap(err, e.Code020R, "01")
+			return nil, e.W(err, ECode020406)
 		}
 	}
 
 	tmpList, ok := db.statusMap[statusGetKey(table, column)]
 	if !ok {
-		return nil, e.New(e.Code020R, "02",
+		return nil, e.N(ECode020407,
 			fmt.Sprintf("Invalid status table/column: %s/%s", table, column))
 	}
 
@@ -96,7 +109,7 @@ func (db *Connection) StatusGetByID(table, column string, id int) (s *Status, er
 		}
 	}
 
-	return nil, e.New(e.Code020R, "03",
+	return nil, e.N(ECode020408,
 		fmt.Sprintf("Status does not exist: table: %s, col: %s, id: %d",
 			table, column, id))
 }
@@ -105,13 +118,13 @@ func (db *Connection) StatusGetByID(table, column string, id int) (s *Status, er
 func (db *Connection) StatusGetListByTblAndCol(table, column string) (sList []*Status, err error) {
 	if db.statusMap == nil {
 		if err := db.statusRefLoad(); err != nil {
-			return nil, e.Wrap(err, e.Code020S, "01")
+			return nil, e.W(err, ECode020409)
 		}
 	}
 
 	tmpList, ok := db.statusMap[statusGetKey(table, column)]
 	if !ok {
-		return nil, e.New(e.Code020S, "02",
+		return nil, e.N(ECode02040A,
 			fmt.Sprintf("Invalid status table/column: %s/%s", table, column))
 	}
 

@@ -13,6 +13,13 @@ import (
 const (
 	MaxGoRoutinesAllowed    = 1000 // The maximum allowed number of go routines
 	DefaultMaxNumGoRoutines = 25
+
+	ECode060101 = e.Code0601 + "01"
+	ECode060102 = e.Code0601 + "02"
+	ECode060103 = e.Code0601 + "03"
+	ECode060104 = e.Code0601 + "04"
+	ECode060105 = e.Code0601 + "05"
+	ECode060106 = e.Code0601 + "06"
 )
 
 // Provider interface for the sync services
@@ -40,7 +47,7 @@ func (s *Service) Process(db *sql.Connection, serviceName string,
 		func(db *sql.Connection, item *model.SyncQueue) error {
 			err := s.syncProvider.HandleItemQueue(db, item)
 			if err != nil {
-				return e.Wrap(err, e.Code060C, "01")
+				return e.W(err, ECode060101)
 			}
 
 			count++
@@ -51,7 +58,7 @@ func (s *Service) Process(db *sql.Connection, serviceName string,
 		},
 	)
 	if err != nil {
-		return e.Wrap(err, e.Code060C, "02")
+		return e.W(err, ECode060102)
 	}
 
 	log.Info().Msgf("Synced: %d record(s)", count)
@@ -98,14 +105,14 @@ func (s *Service) runSync(db *sql.Connection, serviceName string, maxGoRoutines 
 	// Check for any errors in the results
 	for err := range resCh {
 		if err != nil {
-			return e.Wrap(err, e.Code060F, "01")
+			return e.W(err, ECode060103)
 		}
 	}
 
 	// Check for pre-result errors - must occur last as getAllPendingAndFailed
 	// could possibly block otherwise
 	if err := <-errCh; err != nil {
-		return e.Wrap(err, e.Code060F, "02")
+		return e.W(err, ECode060104)
 	}
 
 	return nil
@@ -140,7 +147,7 @@ func getAllPendingAndFailed(db *sql.Connection, service string, done <-chan stru
 			select {
 			case itemCh <- as: // Send the record to the item channel
 			case <-done:
-				return e.New(e.Code060B, "01", "data-cancelled")
+				return e.N(ECode060105, "data-cancelled")
 			}
 			return nil
 		},
@@ -151,7 +158,7 @@ func getAllPendingAndFailed(db *sql.Connection, service string, done <-chan stru
 		}()
 		if _, _, err := sqlmodel.SyncQueueGet(db, p); err != nil {
 			// Send the error to the error channel
-			errCh <- e.Wrap(err, e.Code060B, "02")
+			errCh <- e.W(err, ECode060106)
 		}
 
 		// Send nil to the error channel so it is processed

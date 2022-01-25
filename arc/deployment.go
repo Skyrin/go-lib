@@ -11,6 +11,12 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const (
+	ECode040701 = e.Code0407 + "01"
+	ECode040702 = e.Code0407 + "02"
+	ECode040703 = e.Code0407 + "03"
+)
+
 type Deployment struct {
 	DB        *sql.Connection
 	Model     *model.Deployment
@@ -38,7 +44,7 @@ func (d *Deployment) UpdateGrant(g *Grant) (err error) {
 		RefreshToken:       &g.RefreshToken,
 		RefreshTokenExpiry: &g.RefreshTokenExpiry,
 	}); err != nil {
-		return e.Wrap(err, e.Code040I, "01")
+		return e.W(err, ECode040701)
 	}
 
 	return nil
@@ -48,12 +54,12 @@ func (d *Deployment) UpdateGrant(g *Grant) (err error) {
 func NewDeployment(db *sql.Connection, cp *sql.ConnParam, deploymentCode string) (d *Deployment, err error) {
 	md, err := sqlmodel.DeploymentGetByCode(db, deploymentCode)
 	if err != nil {
-		return nil, e.Wrap(err, e.Code040J, "01")
+		return nil, e.W(err, ECode040702)
 	}
 
 	dn, err := NewDeploymentNotify(cp)
 	if err != nil {
-		return nil, e.Wrap(err, e.Code040J, "02")
+		return nil, e.W(err, ECode040703)
 	}
 
 	dn.Notify = func(deploymentCode string) {

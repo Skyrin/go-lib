@@ -15,6 +15,15 @@ import (
 	"github.com/Skyrin/go-lib/sql"
 )
 
+const (
+	ECode040501 = e.Code0405 + "01"
+	ECode040502 = e.Code0405 + "02"
+	ECode040503 = e.Code0405 + "03"
+	ECode040504 = e.Code0405 + "04"
+	ECode040505 = e.Code0405 + "05"
+	ECode040506 = e.Code0405 + "06"
+)
+
 // DataHandler handler for deployment data events
 type DataHandler struct {
 	Err    error
@@ -125,7 +134,7 @@ func (dh *DataHandler) Publish(r *http.Request) (msg string, code int, err error
 
 	if err := sqlmodel.DataUpsert(dh.db, d); err != nil {
 		return e.MsgUnknownInternalServerError, http.StatusBadGateway,
-			e.Wrap(err, e.Code0415, "01", fmt.Sprintf("data: %s", body))
+			e.W(err, ECode040501, fmt.Sprintf("data: %s", body))
 	}
 
 	return "", http.StatusOK, nil
@@ -159,13 +168,13 @@ func NewDataProcessor(db *sql.Connection, f func(*model.Data) error,
 func (dp *DataProcessor) Run() (err error) {
 	txn, err := dp.db.BeginReturnDB()
 	if err != nil {
-		return e.Wrap(err, e.Code0416, "01")
+		return e.W(err, ECode040502)
 	}
 	defer txn.RollbackIfInTxn()
 
 	// Mark all pending records as processing
 	if err := sqlmodel.DataSetStatusProcessing(txn); err != nil {
-		return e.Wrap(err, e.Code0416, "02")
+		return e.W(err, ECode040503)
 	}
 
 	// Iterate through all records in the processing status
@@ -176,16 +185,16 @@ func (dp *DataProcessor) Run() (err error) {
 		Handle:          dp.handle,
 	})
 	if err != nil {
-		return e.Wrap(err, e.Code0416, "03")
+		return e.W(err, ECode040504)
 	}
 
 	// Mark all processing records as processed
 	if err := sqlmodel.DataSetStatusProcessed(txn); err != nil {
-		return e.Wrap(err, e.Code0416, "04")
+		return e.W(err, ECode040505)
 	}
 
 	if err := txn.Commit(); err != nil {
-		return e.Wrap(err, e.Code0416, "05")
+		return e.W(err, ECode040506)
 	}
 	return nil
 }

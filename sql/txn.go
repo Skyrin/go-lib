@@ -9,6 +9,16 @@ import (
 	_ "github.com/lib/pq"
 )
 
+const (
+	ECode020501 = e.Code0205 + "01"
+	ECode020502 = e.Code0205 + "02"
+	ECode020503 = e.Code0205 + "03"
+	ECode020504 = e.Code0205 + "04"
+	ECode020505 = e.Code0205 + "05"
+	ECode020506 = e.Code0205 + "06"
+	ECode020507 = e.Code0205 + "07"
+)
+
 // Txn wrapper of the *sql.Txn
 type Txn struct {
 	txn *sql.Tx
@@ -28,11 +38,11 @@ func (t *Txn) RollbackIfInTxn() {
 // Rollback attempts to roll back the txn
 func (t *Txn) Rollback() (err error) {
 	if t.txn == nil {
-		return e.Wrap(err, e.Code020I, "01")
+		return e.W(err, ECode020501)
 	}
 
 	if err := t.txn.Rollback(); err != nil {
-		return e.Wrap(err, e.Code020I, "02")
+		return e.W(err, ECode020502)
 	}
 
 	t.txn = nil
@@ -43,11 +53,11 @@ func (t *Txn) Rollback() (err error) {
 // Commit attempts to commit the txn
 func (t *Txn) Commit() (err error) {
 	if t.txn == nil {
-		return e.Wrap(err, e.Code020J, "01")
+		return e.W(err, ECode020503)
 	}
 
 	if err = t.txn.Commit(); err != nil {
-		return e.Wrap(err, e.Code020J, "02")
+		return e.W(err, ECode020504)
 	}
 
 	t.txn = nil
@@ -61,7 +71,7 @@ func (t *Txn) Exec(query string, args ...interface{}) (res sql.Result, err error
 	if err != nil {
 		// Not logging args because it may contain sensitive information. The
 		// caller can log them if needed
-		return nil, e.Wrap(err, e.Code020K, "01", fmt.Sprintf("query: %s\n", query))
+		return nil, e.W(err, ECode020505, fmt.Sprintf("query: %s\n", query))
 	}
 
 	return res, nil
@@ -71,7 +81,7 @@ func (t *Txn) Exec(query string, args ...interface{}) (res sql.Result, err error
 func (t *Txn) Prepare(query string) (stmt *sql.Stmt, err error) {
 	stmt, err = t.txn.Prepare(query)
 	if err != nil {
-		return nil, e.Wrap(err, e.Code020L, "01", query)
+		return nil, e.W(err, ECode020506, query)
 	}
 
 	return stmt, nil
@@ -83,7 +93,7 @@ func (t *Txn) Query(query string, args ...interface{}) (rows *Rows, err error) {
 	if err != nil {
 		// Not logging args because it may contain sensitive information. The
 		// caller can log them if needed
-		return nil, e.Wrap(err, e.Code020M, "01", fmt.Sprintf("query: %s\n", query))
+		return nil, e.W(err, ECode020507, fmt.Sprintf("query: %s\n", query))
 	}
 
 	return &Rows{

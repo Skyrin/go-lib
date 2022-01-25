@@ -13,6 +13,19 @@ import (
 const (
 	AlgoliaSyncTableName = "algolia_sync"
 	AlgoliaDefaultSortBy = "algolia_sync_id"
+
+	ECode050301 = e.Code0503 + "01"
+	ECode050302 = e.Code0503 + "02"
+	ECode050303 = e.Code0503 + "03"
+	ECode050304 = e.Code0503 + "04"
+	ECode050305 = e.Code0503 + "05"
+	ECode050306 = e.Code0503 + "06"
+	ECode050307 = e.Code0503 + "07"
+	ECode050308 = e.Code0503 + "08"
+	ECode050309 = e.Code0503 + "09"
+	ECode05030A = e.Code0503 + "0A"
+	ECode05030B = e.Code0503 + "0B"
+	ECode05030C = e.Code0503 + "0C"
 )
 
 // AlgoliaSyncGetParam model
@@ -53,7 +66,7 @@ func AlgoliaSyncUpsert(db *sql.Connection, input *model.AlgoliaSync) (id int, er
 
 	id, err = db.ExecInsertReturningID(ib)
 	if err != nil {
-		return 0, e.Wrap(err, e.Code0504, "01")
+		return 0, e.W(err, ECode050301)
 	}
 
 	return id, nil
@@ -77,7 +90,7 @@ func AlgoliaSyncSetStatus(db *sql.Connection, id int, status string,
 	}
 
 	if err := db.ExecUpdate(ub); err != nil {
-		return e.Wrap(err, e.Code0507, "01")
+		return e.W(err, ECode050302)
 	}
 
 	return nil
@@ -95,7 +108,7 @@ func AlgoliaSyncForDeleteUpdate(db *sql.Connection, id int, delete bool) (err er
 	}
 
 	if err := db.ExecUpdate(ub); err != nil {
-		return e.Wrap(err, e.Code050C, "01")
+		return e.W(err, ECode050303)
 	}
 
 	return nil
@@ -149,13 +162,13 @@ func AlgoliaSyncGet(db *sql.Connection,
 
 	stmt, bindList, err := sb.ToSql()
 	if err != nil {
-		return nil, 0, e.Wrap(err, e.Code0503, "01")
+		return nil, 0, e.W(err, ECode050304)
 	}
 
 	if p.FlagCount {
 		row := db.QueryRow(strings.Replace(stmt, "{fields}", "count(*)", 1), bindList...)
 		if err := row.Scan(&count); err != nil {
-			return nil, 0, e.Wrap(err, e.Code0503, "02",
+			return nil, 0, e.W(err, ECode050305,
 				fmt.Sprintf("AlgoliaSyncGet.2 | stmt: %s, bindList: %+v",
 					stmt, bindList))
 		}
@@ -177,7 +190,7 @@ func AlgoliaSyncGet(db *sql.Connection,
 	stmt = strings.Replace(stmt, "{fields}", fields, 1)
 	rows, err := db.Query(stmt, bindList...)
 	if err != nil {
-		return nil, 0, e.Wrap(err, e.Code0503, "03")
+		return nil, 0, e.W(err, ECode050306)
 	}
 	defer rows.Close()
 
@@ -186,12 +199,12 @@ func AlgoliaSyncGet(db *sql.Connection,
 		if err := rows.Scan(&as.ID, &as.AlgoliaIndex, &as.AlgoliaObjectID, &as.ItemID, &as.Item,
 			&as.ItemHash, &as.Status, &as.ForDelete, &as.ItemType,
 			&as.CreatedOn, &as.UpdatedOn); err != nil {
-			return nil, 0, e.Wrap(err, e.Code0503, "04")
+			return nil, 0, e.W(err, ECode050307)
 		}
 
 		if p.DataHandler != nil {
 			if err := p.DataHandler(as); err != nil {
-				return nil, 0, e.Wrap(err, e.Code0503, "05")
+				return nil, 0, e.W(err, ECode050308)
 			}
 		} else {
 			asList = append(asList, as)
@@ -225,11 +238,11 @@ func AlgoliaSyncGetByItemIDAndType(db *sql.Connection, itemID int,
 
 	asList, _, err := AlgoliaSyncGet(db, p)
 	if err != nil {
-		return nil, e.Wrap(err, e.Code0506, "01")
+		return nil, e.W(err, ECode050309)
 	}
 
 	if len(asList) == 0 {
-		return nil, e.Wrap(err, e.Code0506, "02")
+		return nil, e.W(err, ECode05030A)
 	}
 
 	return asList[0], nil
@@ -253,14 +266,14 @@ func AlgoliaSyncGetItemIDs(db *sql.Connection, limit, offset int, status []strin
 	stmt = strings.Replace(stmt, "{fields}", fields, 1)
 	rows, err := db.Query(stmt, bindList...)
 	if err != nil {
-		return nil, 0, e.Wrap(err, e.Code050E, "01")
+		return nil, 0, e.W(err, ECode05030B)
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		var id int
 		if err := rows.Scan(&id); err != nil {
-			return nil, 0, e.Wrap(err, e.Code050E, "02")
+			return nil, 0, e.W(err, ECode05030C)
 		}
 
 		idList = append(idList, id)

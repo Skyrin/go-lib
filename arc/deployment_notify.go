@@ -11,6 +11,13 @@ import (
 
 const CHANNEL_ARC_DEPLOYMENT_NOTIFY = "arc_deployment_notify"
 
+const (
+	ECode040601 = e.Code0406 + "01"
+	ECode040602 = e.Code0406 + "02"
+	ECode040603 = e.Code0406 + "03"
+	ECode040604 = e.Code0406 + "04"
+)
+
 // DeploymentNotify use to listen for change events to records in the arc_deployment
 // table. If an insert or update occurs, the event will be triggered with the
 // deployment code passed as the event data. It is the responsibility of the
@@ -31,14 +38,14 @@ func NewDeploymentNotify(cp *sql.ConnParam) (dn *DeploymentNotify, err error) {
 	listener := pq.NewListener(connStr, 10*time.Second, time.Minute, dn.Log)
 	if err := listener.Listen(CHANNEL_ARC_DEPLOYMENT_NOTIFY); err != nil {
 		listener.Close()
-		return nil, e.Wrap(err, e.Code040K, "01")
+		return nil, e.W(err, ECode040601)
 	}
 
 	dn.Listener = listener
 
 	go func() {
 		if err := dn.Listen(); err != nil {
-			log.Warn().Err(err).Msgf("%s%s", e.Code040K, "02")
+			log.Warn().Err(err).Msgf("%s%s", ECode040602)
 		}
 	}()
 
@@ -48,7 +55,7 @@ func NewDeploymentNotify(cp *sql.ConnParam) (dn *DeploymentNotify, err error) {
 // Log handles logging errors
 func (dn *DeploymentNotify) Log(ev pq.ListenerEventType, err error) {
 	if err != nil {
-		log.Warn().Err(err).Msgf("%s%s", e.Code040L, "01")
+		log.Warn().Err(err).Msgf("%s%s", ECode040603)
 	}
 
 	if ev == pq.ListenerEventConnectionAttemptFailed {
@@ -66,7 +73,7 @@ func (dn *DeploymentNotify) Listen() (err error) {
 
 			dn.Notify(e.Extra)
 		case err := <-dn.Failed:
-			return e.Wrap(err, e.Code040M, "01")
+			return e.W(err, ECode040604)
 		case <-time.After(time.Minute):
 			go dn.Listener.Ping()
 		}

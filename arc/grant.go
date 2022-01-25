@@ -11,6 +11,18 @@ import (
 	"github.com/Skyrin/go-lib/sql"
 )
 
+const (
+	ECode040901 = e.Code0409 + "01"
+	ECode040902 = e.Code0409 + "02"
+	ECode040903 = e.Code0409 + "03"
+	ECode040904 = e.Code0409 + "04"
+	ECode040905 = e.Code0409 + "05"
+	ECode040906 = e.Code0409 + "06"
+	ECode040907 = e.Code0409 + "07"
+	ECode040908 = e.Code0409 + "08"
+	ECode040909 = e.Code0409 + "09"
+)
+
 // Grant
 type Grant struct {
 	Token              string `json:"accessToken"`
@@ -47,18 +59,18 @@ func grantClientCredentials(c *Client, id, secret string) (g *Grant, err error) 
 
 	res, err := c.sendSingleRequestItem(c.deployment.getManageCoreServiceURL(), ri, nil)
 	if err != nil {
-		return nil, e.Wrap(err, e.Code040N, "01")
+		return nil, e.W(err, ECode040901)
 	}
 
 	if !res.Success {
 
-		return nil, e.Wrap(err, e.Code040N, "02",
+		return nil, e.W(err, ECode040902,
 			fmt.Sprintf("[%s]%s", res.ErrorCode, res.Message))
 	}
 
 	g = &Grant{}
 	if err := json.Unmarshal(res.Data, g); err != nil {
-		return nil, e.Wrap(err, e.Code040N, "03")
+		return nil, e.W(err, ECode040903)
 	}
 
 	return g, nil
@@ -86,14 +98,14 @@ func (g *Grant) refresh(c *Client, clientID, secret string,
 
 	res, err := c.sendSingleRequestItem(c.deployment.getManageCoreServiceURL(), ri, nil)
 	if err != nil {
-		return false, e.Wrap(err, e.Code040O, "01")
+		return false, e.W(err, ECode040904)
 	}
 
 	var tmpGrant *Grant
 	if res.Data != nil {
 		tmpGrant = &Grant{}
 		if err := json.Unmarshal(res.Data, tmpGrant); err != nil {
-			return false, e.Wrap(err, e.Code040O, "02")
+			return false, e.W(err, ECode040905)
 		}
 	}
 
@@ -112,17 +124,17 @@ func (g *Grant) refresh(c *Client, clientID, secret string,
 func GrantRefresh(db *sql.Connection, c *Client, credentialID int, token string) (g *Grant, err error) {
 	credential, err := sqlmodel.CredentialGetByID(c.deployment.DB, credentialID)
 	if err != nil {
-		return nil, e.Wrap(err, e.Code040P, "01")
+		return nil, e.W(err, ECode040906)
 	}
 
 	dg, err := sqlmodel.DeploymentGrantGetByToken(db, token)
 	if err != nil {
-		return nil, e.New(e.Code040P, "01", e.MsgUnauthorized)
+		return nil, e.N(ECode040907, e.MsgUnauthorized)
 	}
 
 	g = SQLDeploymentGrantToGrant(dg)
 	if _, err := g.refresh(c, credential.ClientID, credential.ClientSecret, true); err != nil {
-		return nil, e.Wrap(err, e.Code040P, "02")
+		return nil, e.W(err, ECode040908)
 	}
 
 	// Update the database record
@@ -133,7 +145,7 @@ func GrantRefresh(db *sql.Connection, c *Client, credentialID int, token string)
 			RefreshToken:       &g.RefreshToken,
 			RefreshTokenExpiry: &g.RefreshTokenExpiry,
 		}); err != nil {
-		return nil, e.Wrap(err, e.Code040P, "03")
+		return nil, e.W(err, ECode040909)
 	}
 
 	return g, nil
