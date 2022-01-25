@@ -161,6 +161,8 @@ func (dp *DataProcessor) Run() (err error) {
 	if err != nil {
 		return e.Wrap(err, e.Code0416, "01")
 	}
+	defer txn.RollbackIfInTxn()
+
 	// Mark all pending records as processing
 	if err := sqlmodel.DataSetStatusProcessing(txn); err != nil {
 		return e.Wrap(err, e.Code0416, "02")

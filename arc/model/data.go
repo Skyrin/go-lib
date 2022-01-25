@@ -58,31 +58,3 @@ func (d *Data) IsValidAppCode() bool {
 
 	return false
 }
-
-// IsValidStatus validates the status
-func (d *Data) IsValidType() bool {
-	switch d.Type {
-	case DataTypeCategory:
-		return true
-	case DataTypeCustomer:
-		return true
-	case DataTypeCustomerList:
-		return true
-	case DataTypeOrderLease:
-		return true
-	case DataTypeProduct:
-		return true
-	case DataTypeProductList:
-		return true
-	case DataTypePurchase:
-		return true
-	case DataTypeRentalAsset:
-		return true
-	case DataTypeRentalAssetList:
-		return true
-	case DataTypeUser:
-		return true
-	}
-
-	return false
-}
