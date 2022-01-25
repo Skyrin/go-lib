@@ -44,6 +44,12 @@ func CORS(next http.Handler) http.Handler {
 		w.Header().Add("Access-Control-Allow-Headers", "Content-Type, X-Requested-With")
 		w.Header().Add("Access-Control-Allow-Methods", "GET, POST")
 
+		// Check the incoming Content-Type header and treat
+		// text/plain as application/json
+		if strings.Contains(r.Header.Get("Content-Type"), "text/plain") {
+			r.Header.Set("Content-Type", "application/json")
+		}
+
 		next.ServeHTTP(w, r)
 	})
 }

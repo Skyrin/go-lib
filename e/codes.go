@@ -60,9 +60,16 @@ const (
 	Code020Q = "020Q"
 	Code020R = "020R"
 	Code020S = "020S"
+	Code020T = "020T"
+	Code020U = "020U"
 
 	//package: http
 	// Code0301 = "0301"
+
+	// package: process
+	Code0301 = "0301" // package:process | process/process.go
+	Code0302 = "0302" // package:sqlmodel | process/internal/sqlmodel/process.go
+	Code0303 = "0303" // package:sqlmodel | process/internal/sqlmodel/process_run.go
 
 	//package: arc
 	Code0401 = "0401"
@@ -101,6 +108,12 @@ const (
 	Code040Y = "040Y"
 	Code040Z = "040Z"
 	Code0410 = "0410"
+	Code0411 = "0411"
+	Code0412 = "0412"
+	Code0413 = "0413"
+	Code0414 = "0414"
+	Code0415 = "0415"
+	Code0416 = "0416"
 
 	//package: algolia
 	Code0501 = "0501"
