@@ -40,9 +40,13 @@ func (c *Client) RegisterCartCustomer(storeCode string, iu *model.CoreUser,
 	if password != "" {
 		rio.Value["password"] = password
 	}
-	rio.Value["firstName"] = iu.Person.FirstName
-	rio.Value["middleName"] = iu.Person.MiddleName
-	rio.Value["lastName"] = iu.Person.LastName
+	rio.Value["person"] = map[string]map[string]string{
+		"value": map[string]string{
+			"firstName":  iu.Person.FirstName,
+			"middleName": iu.Person.MiddleName,
+			"lastName":   iu.Person.LastName,
+		},
+	}
 
 	ri := &RequestItem{
 		Service: "cart",
