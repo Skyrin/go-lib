@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/Skyrin/go-lib/arc/model"
 	"github.com/Skyrin/go-lib/e"
 )
 
@@ -22,26 +23,30 @@ const (
 // customer already exists in arc, will fetch the arc user id (by the passed
 // username) and then make the call to update it. This should only be called
 // when registering a new cart customer, as it will reset the password
-func (c *Client) RegisterCartCustomer(storeCode string,
-	ci *ArcUser, retry bool) (cust *ArcUser, err error) {
+func (c *Client) RegisterCartCustomer(storeCode string, iu *model.CoreUser,
+	password string, retry bool) (cust *model.CoreUser, err error) {
 
 	var params []interface{}
-	if ci.ArcUserID > 0 {
-		params = append(params, ci.ArcUserID)
+	if iu.ID > 0 {
+		params = append(params, iu.ID)
 	} else {
 		params = append(params, nil)
 	}
 
 	rio := RequestItemOption{}
 	rio.Value = map[string]interface{}{}
-	rio.Value["username"] = ci.Username
-	rio.Value["email"] = ci.Email
-	if ci.Password != "" {
-		rio.Value["password"] = ci.Password
+	rio.Value["username"] = iu.Username
+	rio.Value["email"] = iu.Email
+	if password != "" {
+		rio.Value["password"] = password
 	}
-	rio.Value["firstName"] = ci.FirstName
-	rio.Value["middleName"] = ci.MiddleName
-	rio.Value["lastName"] = ci.LastName
+	rio.Value["person"] = map[string]map[string]string{
+		"value": map[string]string{
+			"firstName":  iu.Person.FirstName,
+			"middleName": iu.Person.MiddleName,
+			"lastName":   iu.Person.LastName,
+		},
+	}
 
 	ri := &RequestItem{
 		Service: "cart",
@@ -69,14 +74,14 @@ func (c *Client) RegisterCartCustomer(storeCode string,
 			// assume the user needs to be recreated and will just update the
 			// existing users information.
 			// First now fetch that user
-			cust, err = c.CartGetCustomerByUsername(storeCode, ci.Username)
+			cust, err = c.CartGetCustomerByUsername(storeCode, iu.Username)
 			if err != nil {
 				return nil, e.W(err, ECode040302)
 			}
 
 			// Try to upsert with the id now
-			ci.ArcUserID = cust.ID
-			cust, err = c.RegisterCartCustomer(storeCode, ci, false)
+			iu.ID = cust.ID
+			cust, err = c.RegisterCartCustomer(storeCode, iu, password, false)
 			if err != nil {
 				return nil, e.W(err, ECode040303)
 			}
@@ -84,7 +89,7 @@ func (c *Client) RegisterCartCustomer(storeCode string,
 			return nil, e.W(err, ECode040304)
 		}
 	} else {
-		cust = &ArcUser{}
+		cust = &model.CoreUser{}
 		if err := json.Unmarshal(res.Data, cust); err != nil {
 			return nil, e.W(err, ECode040305)
 		}
@@ -94,7 +99,9 @@ func (c *Client) RegisterCartCustomer(storeCode string,
 }
 
 // CartGetCustomerByUsername fetches the customer by username from the specified store
-func (c *Client) CartGetCustomerByUsername(storeCode, username string) (cust *ArcUser, err error) {
+func (c *Client) CartGetCustomerByUsername(storeCode, username string) (
+	cust *model.CoreUser, err error) {
+
 	var params []interface{}
 
 	rio := RequestItemOption{}
@@ -120,7 +127,7 @@ func (c *Client) CartGetCustomerByUsername(storeCode, username string) (cust *Ar
 		return nil, e.W(err, ECode040307)
 	}
 
-	custList := []*ArcUser{}
+	custList := []*model.CoreUser{}
 	if err := json.Unmarshal(res.Data, &custList); err != nil {
 		return nil, e.W(err, ECode040308)
 	}

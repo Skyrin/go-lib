@@ -41,7 +41,7 @@ func CORS(next http.Handler) http.Handler {
 		}
 		w.Header().Add("Access-Control-Allow-Origin", origin)
 		w.Header().Add("Access-Control-Allow-Credentials", "true")
-		w.Header().Add("Access-Control-Allow-Headers", "Content-Type, X-Requested-With")
+		w.Header().Add("Access-Control-Allow-Headers", "Content-Type, X-Requested-With, Authorization")
 		w.Header().Add("Access-Control-Allow-Methods", "GET, POST")
 
 		// Check the incoming Content-Type header and treat

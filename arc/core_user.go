@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/Skyrin/go-lib/arc/model"
 	"github.com/Skyrin/go-lib/e"
 )
 
@@ -22,24 +23,29 @@ const (
 // user already exists in arc, will fetch the arc user id (by the passed
 // username) and then make the call to update it. This should only be called
 // when registering a new core user, as it will reset the password
-func (c *Client) RegisterCoreUser(ui *ArcUser, retry bool) (au *ArcUser, err error) {
+func (c *Client) RegisterCoreUser(iu *model.CoreUser, password string,
+	retry bool) (cu *model.CoreUser, err error) {
 
 	var params []interface{}
-	if ui.ArcUserID > 0 {
-		params = append(params, ui.ArcUserID)
+	if iu.ID > 0 {
+		params = append(params, iu.ID)
 	} else {
 		params = append(params, nil)
 	}
 
 	rio := RequestItemOption{}
 	rio.Value = map[string]interface{}{}
-	rio.Value["username"] = ui.Email
-	rio.Value["email"] = ui.Email
-	rio.Value["password"] = ui.Password
-	rio.Value["firstName"] = ui.FirstName
-	rio.Value["middleName"] = ui.MiddleName
-	rio.Value["lastName"] = ui.LastName
-	rio.Value["typeCode"] = ui.Type
+	rio.Value["username"] = iu.Email
+	rio.Value["email"] = iu.Email
+	rio.Value["password"] = password
+	rio.Value["typeCode"] = iu.Type
+	rio.Value["person"] = map[string]map[string]string{
+		"value": map[string]string{
+			"firstName": iu.Person.FirstName,
+			"middleName": iu.Person.MiddleName,
+			"lastName": iu.Person.LastName,
+		},
+	}
 
 	ri := &RequestItem{
 		Service: "core",
@@ -69,14 +75,14 @@ func (c *Client) RegisterCoreUser(ui *ArcUser, retry bool) (au *ArcUser, err err
 			// assume the user needs to be recreated and will just update the
 			// existing users information.
 			// First now fetch that user
-			au, err = c.CoreUserGetByUsername(ui.Username)
+			cu, err = c.CoreUserGetByUsername(iu.Username)
 			if err != nil {
 				return nil, e.W(err, ECode040402)
 			}
 
 			// Try to upsert with the id now
-			ui.ArcUserID = au.ID
-			au, err = c.RegisterCoreUser(ui, false)
+			iu.ID = cu.ID
+			cu, err = c.RegisterCoreUser(iu, password, false)
 			if err != nil {
 				return nil, e.W(err, ECode040403)
 			}
@@ -84,17 +90,17 @@ func (c *Client) RegisterCoreUser(ui *ArcUser, retry bool) (au *ArcUser, err err
 			return nil, e.W(err, ECode040404)
 		}
 	} else {
-		au = &ArcUser{}
-		if err := json.Unmarshal(res.Data, au); err != nil {
+		cu = &model.CoreUser{}
+		if err := json.Unmarshal(res.Data, cu); err != nil {
 			return nil, e.W(err, ECode040405)
 		}
 	}
 
-	return au, nil
+	return cu, nil
 }
 
 // CoreUserGetByUsername fetches the core user by username
-func (c *Client) CoreUserGetByUsername(username string) (au *ArcUser, err error) {
+func (c *Client) CoreUserGetByUsername(username string) (cu *model.CoreUser, err error) {
 	var params []interface{}
 
 	rio := RequestItemOption{}
@@ -120,14 +126,14 @@ func (c *Client) CoreUserGetByUsername(username string) (au *ArcUser, err error)
 		return nil, e.W(err, ECode040407)
 	}
 
-	auList := []*ArcUser{}
-	if err := json.Unmarshal(res.Data, &auList); err != nil {
+	cuList := []*model.CoreUser{}
+	if err := json.Unmarshal(res.Data, &cuList); err != nil {
 		return nil, e.W(err, ECode040408)
 	}
 
-	if len(auList) != 1 {
+	if len(cuList) != 1 {
 		return nil, fmt.Errorf(e.MsgCoreUserNotExists)
 	}
 
-	return auList[0], nil
+	return cuList[0], nil
 }

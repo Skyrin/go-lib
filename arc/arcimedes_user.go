@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/Skyrin/go-lib/arc/model"
 	"github.com/Skyrin/go-lib/e"
 )
 
@@ -22,23 +23,28 @@ const (
 // user already exists in arc, will fetch the arc user id (by the passed
 // username) and then make the call to update it. This should only be called
 // when registering a new arcimedes user, as it will reset the password
-func (c *Client) RegisterArcimedesUser(ui *ArcUser, retry bool) (au *ArcUser, err error) {
+func (c *Client) RegisterArcimedesUser(iu *model.CoreUser, password string,
+	retry bool) (cu *model.CoreUser, err error) {
 
 	var params []interface{}
-	if ui.ArcUserID > 0 {
-		params = append(params, ui.ArcUserID)
+	if iu.ID > 0 {
+		params = append(params, iu.ID)
 	} else {
 		params = append(params, nil)
 	}
 
 	rio := RequestItemOption{}
 	rio.Value = map[string]interface{}{}
-	rio.Value["username"] = ui.Email
-	rio.Value["email"] = ui.Email
-	rio.Value["password"] = ui.Password
-	rio.Value["firstName"] = ui.FirstName
-	rio.Value["middleName"] = ui.MiddleName
-	rio.Value["lastName"] = ui.LastName
+	rio.Value["username"] = iu.Email
+	rio.Value["email"] = iu.Email
+	rio.Value["password"] = password
+	rio.Value["person"] = map[string]map[string]string{
+		"value": map[string]string{
+			"firstName":  iu.Person.FirstName,
+			"middleName": iu.Person.MiddleName,
+			"lastName":   iu.Person.LastName,
+		},
+	}
 
 	ri := &RequestItem{
 		Service: "arcimedes",
@@ -66,14 +72,14 @@ func (c *Client) RegisterArcimedesUser(ui *ArcUser, retry bool) (au *ArcUser, er
 			// assume the user needs to be recreated and will just update the
 			// existing users information.
 			// First now fetch that user
-			au, err = c.ArcimedesUserGetByUsername(ui.Username)
+			cu, err = c.ArcimedesUserGetByUsername(iu.Username)
 			if err != nil {
 				return nil, e.W(err, ECode040202)
 			}
 
 			// Try to upsert with the id now
-			ui.ArcUserID = au.ID
-			au, err = c.RegisterArcimedesUser(ui, false)
+			iu.ID = cu.ID
+			cu, err = c.RegisterArcimedesUser(iu, password, false)
 			if err != nil {
 				return nil, e.W(err, ECode040203)
 			}
@@ -81,17 +87,17 @@ func (c *Client) RegisterArcimedesUser(ui *ArcUser, retry bool) (au *ArcUser, er
 			return nil, e.W(err, ECode040204)
 		}
 	} else {
-		au = &ArcUser{}
-		if err := json.Unmarshal(res.Data, au); err != nil {
+		cu = &model.CoreUser{}
+		if err := json.Unmarshal(res.Data, cu); err != nil {
 			return nil, e.W(err, ECode040205)
 		}
 	}
 
-	return au, nil
+	return cu, nil
 }
 
 // ArcimedesUserGetByUsername fetches the arcimedes user by username
-func (c *Client) ArcimedesUserGetByUsername(username string) (au *ArcUser, err error) {
+func (c *Client) ArcimedesUserGetByUsername(username string) (cu *model.CoreUser, err error) {
 	var params []interface{}
 
 	rio := RequestItemOption{}
@@ -117,14 +123,14 @@ func (c *Client) ArcimedesUserGetByUsername(username string) (au *ArcUser, err e
 		return nil, e.W(err, ECode040207)
 	}
 
-	auList := []*ArcUser{}
-	if err := json.Unmarshal(res.Data, &auList); err != nil {
+	cuList := []*model.CoreUser{}
+	if err := json.Unmarshal(res.Data, &cuList); err != nil {
 		return nil, e.W(err, ECode040208)
 	}
 
-	if len(auList) != 1 {
+	if len(cuList) != 1 {
 		return nil, fmt.Errorf(e.MsgArcimedesUserNotExists)
 	}
 
-	return auList[0], nil
+	return cuList[0], nil
 }
