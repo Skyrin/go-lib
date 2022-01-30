@@ -33,16 +33,17 @@ const (
 
 // Deployment
 type Data struct {
-	AppCode   AppCode         `json:"appCode"`
-	AppCoreID uint            `json:"appCoreId"`
-	Type      DataType        `json:"objectType"`
-	ObjectID  uint            `json:"objectId"`
-	Status    DataStatus      `json:"status"`
-	Object    json.RawMessage `json:"object"`
-	Deleted   bool            `json:"deleted"`
-	Hash      []byte          `json:"-"`
-	CreatedOn time.Time       `json:"-"`
-	UpdatedOn time.Time       `json:"-"`
+	DeploymentID int             `json:"-"`
+	AppCode      AppCode         `json:"appCode"`
+	AppCoreID    uint            `json:"appCoreId"`
+	Type         DataType        `json:"objectType"`
+	ObjectID     uint            `json:"objectId"`
+	Status       DataStatus      `json:"status"`
+	Object       json.RawMessage `json:"object"`
+	Deleted      bool            `json:"deleted"`
+	Hash         []byte          `json:"-"`
+	CreatedOn    time.Time       `json:"-"`
+	UpdatedOn    time.Time       `json:"-"`
 }
 
 // IsValidAppCode validates the app code

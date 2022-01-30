@@ -18,6 +18,7 @@ END$$;
 
 -- This keeps track of data that originated from an arc deployment
 CREATE TABLE IF NOT EXISTS arc_data (
+	arc_deployment_id BIGINT NOT NULL,
 	-- The associated app code: i.e. core, cart or arcimedes
 	arc_app_code arc_app_code NOT NULL,
 	-- The associated app core id: i.e. the cart store id or arcimedes table id
@@ -40,7 +41,11 @@ CREATE TABLE IF NOT EXISTS arc_data (
 	created_on TIMESTAMP NOT NULL,
 	updated_on TIMESTAMP NOT NULL,
 	CONSTRAINT arc_data__pkey UNIQUE
-		(arc_app_code,arc_app_core_id,arc_data_type,arc_data_object_id)
+		(arc_deployment_id,arc_app_code,arc_app_core_id,arc_data_type,arc_data_object_id),
+	CONSTRAINT arc_deployment_id__fk 
+		FOREIGN KEY (arc_deployment_id)
+		REFERENCES arc_deployment(arc_deployment_id)
+		ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 COMMIT;

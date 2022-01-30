@@ -30,6 +30,7 @@ const (
 type DataGetParam struct {
 	Limit           uint64
 	Offset          uint64
+	DeploymentID    *int
 	AppCode         *model.AppCode
 	AppCoreID       *uint
 	Type            *model.DataType
@@ -46,6 +47,7 @@ func DataSetStatus(db *sql.Connection, s model.DataStatus, d *model.Data) (err e
 	ub := db.Update(DataTableName).
 		Set("arc_data_status", s).
 		Set("updated_on", "now()").
+		Where("arc_deployment_id=?", d.DeploymentID).
 		Where("arc_app_code=?", d.AppCode).
 		Where("arc_app_core_id=?", d.AppCoreID).
 		Where("arc_data_type=?", d.Type).
@@ -63,20 +65,20 @@ func DataSetStatus(db *sql.Connection, s model.DataStatus, d *model.Data) (err e
 // has changed or if the deleted flag has changed. When updating, it will calculate
 // the hash and set the new object, hash and/or deleted flag. Also, it sets the
 // status to pending in this scenario
-func DataUpsert(db *sql.Connection, d *model.Data) (err error) {
+func DataUpsert(db *sql.Connection, deploymentID int, d *model.Data) (err error) {
 	// Calculate the hash
 	hash := sha512.Sum512_256(d.Object)
 	d.Hash = hash[:]
 
 	ib := db.Insert(DataTableName).Columns(`
-			arc_app_code,arc_app_core_id,arc_data_type,arc_data_object_id,
+			arc_deployment_id,arc_app_code,arc_app_core_id,arc_data_type,arc_data_object_id,
 			arc_data_status,arc_data_object,arc_data_hash,arc_data_deleted,
 			created_on,updated_on`).
-		Values(d.AppCode, d.AppCoreID, d.Type, d.ObjectID,
+		Values(deploymentID, d.AppCode, d.AppCoreID, d.Type, d.ObjectID,
 			model.DataStatusPending, d.Object, d.Hash, d.Deleted,
 			"now()", "now()").
-		Suffix(`ON CONFLICT
-			(arc_app_code,arc_app_core_id,arc_data_type,arc_data_object_id)
+		Suffix(`ON CONFLICT ON CONSTRAINT arc_data__pkey
+--			(arc_deployment_id,arc_app_code,arc_app_core_id,arc_data_type,arc_data_object_id)
 		DO UPDATE
 		SET arc_data_status=excluded.arc_data_status,
 			arc_data_object=excluded.arc_data_object,
@@ -98,7 +100,7 @@ func DataUpsert(db *sql.Connection, d *model.Data) (err error) {
 func DataGet(db *sql.Connection,
 	p *DataGetParam) (dList []*model.Data, count int, err error) {
 
-	fields := `arc_app_code,arc_app_core_id,arc_data_type,arc_data_object_id,
+	fields := `arc_deployment_id,arc_app_code,arc_app_core_id,arc_data_type,arc_data_object_id,
 	arc_data_object,arc_data_hash,arc_data_deleted,arc_data_status,
 	created_on,updated_on`
 
@@ -107,6 +109,10 @@ func DataGet(db *sql.Connection,
 
 	if p.Limit > 0 {
 		sb = sb.Limit(p.Limit)
+	}
+
+	if p.DeploymentID != nil {
+		sb = sb.Where("arc_deployment_id=?", *p.DeploymentID)
 	}
 
 	if p.AppCode != nil {
@@ -148,8 +154,8 @@ func DataGet(db *sql.Connection,
 
 	if p.OrderBy != "" {
 		sb = sb.OrderBy(fmt.Sprintf(
-			"arc_app_code %s, arc_app_core_id %s, arc_data_type %s, arc_data_object_id %s",
-			p.OrderBy, p.OrderBy, p.OrderBy, p.OrderBy))
+			"arc_deployment_id %s, arc_app_code %s, arc_app_core_id %s, arc_data_type %s, arc_data_object_id %s",
+			p.OrderBy, p.OrderBy, p.OrderBy, p.OrderBy, p.OrderBy))
 	}
 
 	if p.OrderByTypeList != nil {
@@ -173,7 +179,7 @@ func DataGet(db *sql.Connection,
 
 	for rows.Next() {
 		d := &model.Data{}
-		if err := rows.Scan(&d.AppCode, &d.AppCoreID, &d.Type, &d.ObjectID,
+		if err := rows.Scan(&d.DeploymentID, &d.AppCode, &d.AppCoreID, &d.Type, &d.ObjectID,
 			&d.Object, &d.Hash, &d.Deleted, &d.Status,
 			&d.CreatedOn, &d.UpdatedOn); err != nil {
 			return nil, 0, e.W(err, ECode040C06)
@@ -193,14 +199,15 @@ func DataGet(db *sql.Connection,
 
 // DataGetByObjectID returns record associated with the object id, must also include
 // the app code, app core id and data type to be unique
-func DataGetByObjectID(db *sql.Connection, appCode model.AppCode,
+func DataGetByObjectID(db *sql.Connection, deploymentID int, appCode model.AppCode,
 	appCoreID uint, t model.DataType, objectID uint) (d *model.Data, err error) {
 	dList, _, err := DataGet(db, &DataGetParam{
-		Limit:     1,
-		AppCode:   &appCode,
-		AppCoreID: &appCoreID,
-		Type:      &t,
-		ObjectID:  &objectID,
+		Limit:        1,
+		DeploymentID: &deploymentID,
+		AppCode:      &appCode,
+		AppCoreID:    &appCoreID,
+		Type:         &t,
+		ObjectID:     &objectID,
 	})
 
 	if err != nil {
