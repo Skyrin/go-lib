@@ -21,7 +21,7 @@ type SyncQueue struct {
 	UpdatedOn string
 }
 
-// If we add the item, do not forget to custom marshal JSON for the item
-// func (sq *SyncQueue) MarshalJSON() ([]byte, error) {
-// 	return sq.Item, nil
-// }
+// MarshalJSON If we add the item, do not forget to custom marshal JSON for the item
+func (sq *SyncQueue) MarshalJSON() ([]byte, error) {
+	return *sq.Item, nil
+}
