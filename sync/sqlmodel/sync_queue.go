@@ -31,6 +31,7 @@ const (
 	ECode06030F = e.Code0603 + "0F"
 	ECode06030G = e.Code0603 + "0G"
 	ECode06030H = e.Code0603 + "0H"
+	ECode06030I = e.Code0603 + "0I"
 )
 
 // SyncQueueGetParam model
@@ -94,6 +95,25 @@ func SyncQueueSetStatus(db *sql.Connection, id int, status string) (err error) {
 
 	if err := db.ExecUpdate(ub); err != nil {
 		return e.W(err, ECode060302)
+	}
+
+	return nil
+}
+
+// SyncQueueSetStatusForAllByService updates the status for all items for the specified service
+func SyncQueueSetStatusForAllByService(db *sql.Connection, serviceName string, status string) (err error) {
+	ub := db.Update(SyncQueueTableName).
+		Where("sync_queue_service=?", serviceName).
+		Set("sync_queue_status", status).
+		Set("updated_on", "now()")
+
+	if status == model.SyncQueueStatusComplete || status == model.SyncQueueStatusPending {
+		ub = ub.Set("sync_queue_retries", 0).
+			Set("sync_queue_error", "")
+	}
+
+	if err := db.ExecUpdate(ub); err != nil {
+		return e.W(err, ECode06030I)
 	}
 
 	return nil
