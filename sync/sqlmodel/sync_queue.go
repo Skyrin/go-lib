@@ -189,9 +189,9 @@ func SyncQueueSetDeleteByServiceItemTypeAndItemID(db *sql.Connection, itemID int
 	delete bool) (err error) {
 	ub := db.Update(SyncQueueTableName).
 		Where("sync_queue_item_id=?", itemID).
+		Where("sync_queue_service", service).
+		Where("sync_queue_item_type", itemType).
 		Set("sync_queue_delete", delete).
-		Set("sync_queue_item_type", itemType).
-		Set("sync_queue_service", service).
 		Set("updated_on", "now()")
 
 	if delete {
