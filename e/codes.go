@@ -31,6 +31,7 @@ const (
 	Code0301 = "0301" // package:process | process/process.go
 	Code0302 = "0302" // package:sqlmodel | process/internal/sqlmodel/process.go
 	Code0303 = "0303" // package:sqlmodel | process/internal/sqlmodel/process_run.go
+	Code0304 = "0304" // package:process | process/queue.go
 
 	//package: arc
 	Code0401 = "0401" // package:arc | arc/arc_client.go
