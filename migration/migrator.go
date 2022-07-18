@@ -208,6 +208,14 @@ func (m *Migrator) checkShouldRunFile(ml *List, f *File) (id int, shouldRun bool
 		return id, false, nil
 	}
 
+	if mm != nil && mm.Status == model.MIGRATION_STATUS_FAILED {
+		// If this version failed, then resave the SQL as it may have changed
+		newSQL := string(f.SQL)
+		sqlmodel.MigrationUpdate(m.db, id, &sqlmodel.MigrationUpdateParam{
+			SQL: &newSQL,
+		})
+	}
+
 	return id, true, nil
 }
 

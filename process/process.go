@@ -17,13 +17,15 @@ const (
 	ECode030104 = e.Code0301 + "04"
 	ECode030105 = e.Code0301 + "05"
 	ECode030106 = e.Code0301 + "06"
-	ECode030107 = e.Code0301 + "07"
+	// ECode030107 = e.Code0301 + "07"
 	ECode030108 = e.Code0301 + "08"
 	ECode030109 = e.Code0301 + "09"
 	ECode03010A = e.Code0301 + "0A"
 	ECode03010B = e.Code0301 + "0B"
-	ECode03010C = e.Code0301 + "0C"
+	// ECode03010C = e.Code0301 + "0C"
 	ECode03010D = e.Code0301 + "0D"
+	ECode03010E = e.Code0301 + "0E"
+	ECode03010F = e.Code0301 + "0F"
 )
 
 // Processor is used to create a singleton process. It ensures only
@@ -61,18 +63,32 @@ func (p *Processor) Register(code, name string, f func() error) (err error) {
 			fmt.Sprintf("process '%s' already registered", code))
 	}
 
-	// TODO: upsert to process
-	mp := &model.Process{
-		Code:   code,
-		Name:   name,
-		Status: model.ProcessStatusReady,
+	var id int
+	// Check it the process has been created in the process table
+	mp, err := sqlmodel.ProcessGetByCode(p.db, code)
+	if err != nil {
+		if !e.ContainsError(err, sqlmodel.ECode030206) {
+			// Return any error except the does not exist by code
+			return e.W(err, ECode03010E)
+		}
+		// The process does not exist yet, create it now
+		mp = &model.Process{
+			Code:   code,
+			Name:   name,
+			Status: model.ProcessStatusActive,
+		}
+
+		id, err = sqlmodel.ProcessUpsert(p.db, mp)
+		if err != nil {
+			return e.W(err, ECode030102)
+		}
+		mp.ID = id
 	}
 
-	id, err := sqlmodel.ProcessUpsert(p.db, mp)
-	if err != nil {
-		return e.W(err, ECode030102)
+	// Check if the process is active
+	if mp.Status != model.ProcessStatusActive {
+		return e.N(ECode03010F, "process inactive")
 	}
-	mp.ID = id
 
 	r := &run{
 		process: mp,
@@ -116,19 +132,13 @@ func (p *Processor) Run(code string) (err error) {
 	}
 	defer dbLock.RollbackIfInTxn()
 
-	// Establish the lock
+	// Establish the lock for this process record
 	if _, _, err := sqlmodel.ProcessGet(dbLock, &sqlmodel.ProcessGetParam{
 		Code:                 &r.process.Code,
 		ForNoKeyUpdateNoWait: true,
+		Status:               model.ProcessStatusActive,
 	}); err != nil {
 		return e.W(err, ECode030106)
-	}
-
-	// Set status of process to running (this will lock the process)
-	if err := sqlmodel.ProcessSetStatusByCode(dbLock, r.process.Code,
-		model.ProcessStatusRunning); err != nil {
-
-		return e.W(err, ECode030107)
 	}
 
 	// Create a new process run record
@@ -150,13 +160,6 @@ func (p *Processor) Run(code string) (err error) {
 	// Set status of run to completed
 	if err := sqlmodel.ProcessRunComplete(p.db, runID, ""); err != nil {
 		return e.W(err, ECode03010B)
-	}
-
-	// Reset the status of the process to ready
-	if err := sqlmodel.ProcessSetStatusByCode(dbLock,
-		r.process.Code, model.ProcessStatusReady); err != nil {
-
-		return e.W(err, ECode03010C)
 	}
 
 	// Release the lock on this process

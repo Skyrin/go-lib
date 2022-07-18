@@ -31,13 +31,14 @@ type ProcessGetParam struct {
 	FlagCount            bool
 	OrderByID            string
 	ForNoKeyUpdateNoWait bool
+	Status               string
 }
 
 // ProcessUpsert upsert a record into the process table
 func ProcessUpsert(db *sql.Connection, p *model.Process) (id int, err error) {
 	sb := db.Insert(ProcessTable).
 		Columns("process_code", "process_name", "process_status", "process_message", "created_on", "updated_on").
-		Values(p.Code, p.Name, model.ProcessStatusReady, "", "now()", "now()").
+		Values(p.Code, p.Name, model.ProcessStatusActive, "", "now()", "now()").
 		Suffix(`ON CONFLICT ON CONSTRAINT process__ukey DO UPDATE
 		SET process_name=excluded.process_name, updated_on=now() 
 		RETURNING process_id`)
@@ -68,6 +69,10 @@ func ProcessGet(db *sql.Connection, p *ProcessGetParam) (pList []*model.Process,
 
 	if p.Code != nil && len(*p.Code) > 0 {
 		sb = sb.Where("process_code = ?", *p.Code)
+	}
+
+	if p.Status != "" {
+		sb = sb.Where("process_status=?", p.Status)
 	}
 
 	if p.FlagCount {

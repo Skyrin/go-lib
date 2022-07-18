@@ -3,8 +3,8 @@ package model
 import "time"
 
 const (
-	ProcessStatusReady   = "ready"
-	ProcessStatusRunning = "running"
+	ProcessStatusActive = "active"
+	ProcessStatusInactive = "inactive"
 )
 
 type Process struct {
