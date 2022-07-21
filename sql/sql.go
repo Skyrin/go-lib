@@ -44,6 +44,9 @@ const (
 	ECode02030P = e.Code0203 + "0P"
 	ECode02030Q = e.Code0203 + "0Q"
 	ECode02030R = e.Code0203 + "0R"
+	ECode02030S = e.Code0203 + "0S"
+	ECode02030T = e.Code0203 + "0T"
+	ECode02030U = e.Code0203 + "0U"
 )
 
 // Connection wrapper of the *sql.DB
@@ -503,4 +506,14 @@ func (c *Connection) ToSQLWFieldAndQuery(sb sq.SelectBuilder, fields string) (ro
 	}
 
 	return rows, nil
+}
+
+// Prepare creates a prepared statement from the query
+func (c *Connection) Prepare(query string) (stmt *sql.Stmt, err error) {
+	stmt, err = c.DB.Prepare(query)
+	if err != nil {
+		return nil, e.W(err, ECode02030S, fmt.Sprintf("query: %s"))
+	}
+
+	return stmt, nil
 }
