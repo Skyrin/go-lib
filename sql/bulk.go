@@ -3,6 +3,7 @@ package sql
 import (
 	dsql "database/sql"
 	"strings"
+	"sync"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/Skyrin/go-lib/e"
@@ -36,7 +37,9 @@ type BulkInsert struct {
 	paramCount        int                    // The current parameter count
 	paramPerStatement int                    // The number of parameters per statement
 	cache             map[int]*dsql.Stmt     // Stores cached statements, if enabled
-	enableCache       bool
+	enableCache       bool                   // Indicate whether to enable cache or not
+	mutex             sync.RWMutex           // Mutex for thread safe adding to bulk insert
+	count             int                    // Keeps track of how many rows were added (for each call to Add)
 }
 
 // NewBulkInsert initializes a new BulkInsert, specifying the table, columns and optional suffix
@@ -57,6 +60,7 @@ func NewBulkInsert(db *Connection, table, columns, suffix string) (bi *BulkInser
 		Suffix:            suffix,
 		maxParamPerInsert: DefaultMaxParamPerInsert,
 		paramPerStatement: len(strings.Split(columns, ",")),
+		mutex:             sync.RWMutex{},
 	}
 
 	// Initialize the builder
@@ -89,10 +93,22 @@ func (bi *BulkInsert) DisableCache() (errList []error) {
 	return bi.Close()
 }
 
+// GetCount returns the number of rows that have been added to the bulk insert
+func (bi *BulkInsert) GetCount() (count int) {
+	return bi.count
+}
+
 // Add adds the values to be sent as a bulk insert. If the number of parameters
 // exceeds the max param per insert, then it will run the currently build statement
 // and then reset itself for more values to be added
 func (bi *BulkInsert) Add(values ...interface{}) (err error) {
+	bi.mutex.Lock()
+	defer func() {
+		bi.mutex.Unlock()
+	}()
+
+	bi.count++
+
 	// Append the values to the bind list
 	bi.ib = bi.ib.Values(values...)
 
@@ -122,6 +138,10 @@ func (bi *BulkInsert) Close() (errList []error) {
 	if bi.cache == nil {
 		return nil
 	}
+	bi.mutex.Lock()
+	defer func() {
+		bi.mutex.Unlock()
+	}()
 
 	for key, stmt := range bi.cache {
 		if err := stmt.Close(); err != nil {
@@ -136,6 +156,11 @@ func (bi *BulkInsert) Close() (errList []error) {
 // Flush if there is a remaining statement to run, it will
 // execute the query
 func (bi *BulkInsert) Flush() (err error) {
+	bi.mutex.Lock()
+	defer func() {
+		bi.mutex.Unlock()
+	}()
+
 	if bi.paramCount > 0 {
 		if err := bi.exec(); err != nil {
 			return e.W(err, ECode020704)
