@@ -99,6 +99,7 @@ func (q *Queue) Run() (err error) {
 		if err := q.generator.FillQueue(); err != nil {
 			// Send the error to the error channel
 			q.errCh <- e.W(err, ECode03040E)
+			return
 		}
 
 		// Send nil to the error channel so it is processed

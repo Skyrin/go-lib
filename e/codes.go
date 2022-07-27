@@ -28,6 +28,7 @@ const (
 	Code0206 = "0206" // package:sql | sql/rows.go
 	Code0207 = "0207" // package:sql | sql/bulk.go
 	Code0208 = "0208" // package:sql | sql/statement.go
+	Code0209 = "0209" // package:sql | sql/bulk_update.go
 
 	// package: process
 	Code0301 = "0301" // package:process | process/process.go
