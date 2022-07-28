@@ -2,6 +2,7 @@ package migration
 
 import (
 	"embed"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -76,6 +77,7 @@ func (l List) GetLatestMigrationFiles(v int) (fList []*File, err error) {
 	}
 	fList = make([]*File, 0, len(dirList))
 
+	// Load files first, then sort according to version
 	for _, file := range dirList {
 		if file.IsDir() {
 			continue
@@ -109,6 +111,11 @@ func (l List) GetLatestMigrationFiles(v int) (fList []*File, err error) {
 
 		fList = append(fList, f)
 	}
+
+	// Sort files by version ascending
+	sort.Slice(fList, func(i, j int) bool {
+		return fList[i].Version < fList[j].Version
+	})
 
 	return fList, nil
 }
