@@ -192,10 +192,11 @@ func (bi *BulkInsert) exec() (err error) {
 		}
 		_, ok := bi.cache[bi.paramCount]
 		if !ok {
-			bi.cache[bi.paramCount], err = bi.db.Prepare(query)
+			stmt, err := bi.db.Prepare(query)
 			if err != nil {
 				return e.W(err, ECode020708)
 			}
+			bi.cache[bi.paramCount] = stmt
 		}
 
 		_, err = bi.cache[bi.paramCount].Exec(bindParams...)
