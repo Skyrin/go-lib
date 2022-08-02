@@ -39,7 +39,8 @@ type BulkInsert struct {
 	cache             map[int]*dsql.Stmt     // Stores cached statements, if enabled
 	enableCache       bool                   // Indicate whether to enable cache or not
 	mutex             sync.RWMutex           // Mutex for thread safe adding to bulk insert
-	count             int                    // Keeps track of how many rows were added (for each call to Add)
+	count             int                    // Keeps track of current number of calls to Add, since last Flush
+	total             int                    // Keeps track of total number of calls to Add
 }
 
 // NewBulkInsert initializes a new BulkInsert, specifying the table, columns and optional suffix
@@ -98,22 +99,35 @@ func (bi *BulkInsert) GetCount() (count int) {
 	return bi.count
 }
 
+// GetTotal returns the total number of rows that have been added to the bulk insert
+// since it was initialized
+func (bi *BulkInsert) GetTotal() (total int) {
+	bi.mutex.RLock()
+	defer func() {
+		bi.mutex.RUnlock()
+	}()
+	return bi.total
+}
+
 // Add adds the values to be sent as a bulk insert. If the number of parameters
-// exceeds the max param per insert, then it will run the currently build statement
-// and then reset itself for more values to be added
-func (bi *BulkInsert) Add(values ...interface{}) (err error) {
+// exceeds the max param per insert, then it will run the current build statement
+// and then reset itself for more values to be added. If it executed a statement,
+// it will return the current count as the number of rows inserted. This will not
+// track actual rows inserted, e.g. if duplicates are ignored.
+func (bi *BulkInsert) Add(values ...interface{}) (rowsInserted int, err error) {
 	bi.mutex.Lock()
 	defer func() {
 		bi.mutex.Unlock()
 	}()
 
 	bi.count++
+	bi.total++
 
 	// Append the values to the bind list
 	bi.ib = bi.ib.Values(values...)
 
 	if len(values) != bi.paramPerStatement {
-		return e.N(ECode02070A, "number of values must equal number of columns")
+		return 0, e.N(ECode02070A, "number of values must equal number of columns")
 	}
 
 	// Increment the param count
@@ -123,14 +137,18 @@ func (bi *BulkInsert) Add(values ...interface{}) (err error) {
 	if bi.paramCount > bi.maxParamPerInsert {
 		// Run the currently stored statement
 		if err := bi.exec(); err != nil {
-			return e.W(err, ECode020703)
+			return 0, e.W(err, ECode020703)
 		}
+
+		// Get the number of rows that were inserted (should be the current count)
+		// Ensure this is done before the begin call, as that will reset the count
+		rowsInserted = bi.count
 
 		// Reset the param count and insert builder
 		bi.begin()
 	}
 
-	return nil
+	return rowsInserted, nil
 }
 
 // Close if cache is enabled, then it closes all cached statements
@@ -171,10 +189,12 @@ func (bi *BulkInsert) Flush() (err error) {
 	return nil
 }
 
-// begin initializes an insert builder
+// begin initializes an insert builder and also resets it after a statement
+// has been executed
 func (bi *BulkInsert) begin() {
 	bi.ib = bi.db.Insert(bi.Table).Columns(bi.Columns)
 	bi.paramCount = 0
+	bi.count = 0
 }
 
 // exec runs the insert statement

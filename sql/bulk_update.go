@@ -41,7 +41,7 @@ type BulkUpdate struct {
 	enableCache          bool                   // Indicate whether to enable cache or not
 	mutex                sync.RWMutex           // Mutex for thread safe adding to bulk update
 	count                int                    // Keeps track of current number of calls to Add, since last Flush
-	total                int                    // Keeps track of how total number of calls to Add
+	total                int                    // Keeps track of total number of calls to Add
 	bindNumber           int                    // Used when building the statement, keeping track of the current bind variable
 }
 
