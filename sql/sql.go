@@ -308,9 +308,8 @@ func (c *Connection) Query(query string, args ...interface{}) (rows *Rows, err e
 	if c.txn != nil {
 		rows, err := c.txn.Query(query, args...)
 		if err != nil {
-			// Not logging args because it may contain sensitive information. The
-			// caller can log them if needed
-			return nil, e.W(err, ECode02030C, fmt.Sprintf("query: %s\n", query))
+			// Query will be logged in: func (t *Txn) Query
+			return nil, e.W(err, ECode02030C)
 		}
 		return rows, nil
 	}
@@ -501,8 +500,7 @@ func (c *Connection) ToSQLWFieldAndQuery(sb sq.SelectBuilder, fields string) (ro
 	stmt = strings.Replace(stmt, FieldPlaceHolder, fields, 1)
 	rows, err = c.Query(stmt, bindParams...)
 	if err != nil {
-		return nil, e.W(err, ECode02030R,
-			fmt.Sprintf("bindParams: %+v", bindParams))
+		return nil, e.W(err, ECode02030R)
 	}
 
 	return rows, nil

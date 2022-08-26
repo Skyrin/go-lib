@@ -11,17 +11,17 @@ import (
 )
 
 const (
-	ECode030101 = e.Code0301 + "01"
-	ECode030102 = e.Code0301 + "02"
-	ECode030103 = e.Code0301 + "03"
-	ECode030104 = e.Code0301 + "04"
-	ECode030105 = e.Code0301 + "05"
-	ECode030106 = e.Code0301 + "06"
-	// ECode030107 = e.Code0301 + "07"
-	ECode030108 = e.Code0301 + "08"
-	ECode030109 = e.Code0301 + "09"
-	ECode03010A = e.Code0301 + "0A"
-	ECode03010B = e.Code0301 + "0B"
+	ECode030101                       = e.Code0301 + "01"
+	ECode030102                       = e.Code0301 + "02"
+	ECode030103                       = e.Code0301 + "03"
+	ECode030104                       = e.Code0301 + "04"
+	ECode030105                       = e.Code0301 + "05"
+	ECode030106                       = e.Code0301 + "06"
+	ECode030107_processAlreadyRunning = e.Code0301 + "07"
+	ECode030108                       = e.Code0301 + "08"
+	ECode030109                       = e.Code0301 + "09"
+	ECode03010A                       = e.Code0301 + "0A"
+	ECode03010B                       = e.Code0301 + "0B"
 	// ECode03010C = e.Code0301 + "0C"
 	ECode03010D = e.Code0301 + "0D"
 	ECode03010E = e.Code0301 + "0E"
@@ -138,6 +138,10 @@ func (p *Processor) Run(code string) (err error) {
 		ForNoKeyUpdateNoWait: true,
 		Status:               model.ProcessStatusActive,
 	}); err != nil {
+		// Special case if failed due to FOR NO KEY UPDATE NOWAIT
+		if e.IsCouldNotLockPQError(err) {
+			return e.W(err, ECode030107_processAlreadyRunning)
+		}
 		return e.W(err, ECode030106)
 	}
 
