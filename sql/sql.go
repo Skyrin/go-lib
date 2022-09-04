@@ -374,8 +374,8 @@ func (c *Connection) Update(table string) sq.UpdateBuilder {
 }
 
 // Expr wrapper for github.com/Masterminds/squirrel.Expr
-func (c *Connection) Expr(sql string, args interface{}) sq.Sqlizer {
-	return sq.Expr(sql, args)
+func (c *Connection) Expr(sql string, args ...interface{}) sq.Sqlizer {
+	return sq.Expr(sql, args...)
 }
 
 // ToSQLAndQuery converts the select build to a SQL statement and bind parameters,

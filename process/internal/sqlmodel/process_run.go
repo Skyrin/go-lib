@@ -2,6 +2,7 @@ package sqlmodel
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/Skyrin/go-lib/e"
 	"github.com/Skyrin/go-lib/process/model"
@@ -33,7 +34,9 @@ type ProcessRunGetParam struct {
 
 // ProcessRunGet performs the DB query to return the list of docks
 func ProcessRunGet(db *sql.Connection, p *ProcessRunGetParam) (dList []*model.ProcessRun, count int, err error) {
-	fields := `process_run_id, process_id, process_run_status, process_run_error, created_on, updated_on`
+	fields := `process_run_id, process_id, process_run_status, 
+		EXTRACT(EPOCH FROM process_run_time)::INTEGER, process_run_error,
+		created_on, updated_on`
 
 	if p.Limit == 0 {
 		p.Limit = 1
@@ -74,9 +77,15 @@ func ProcessRunGet(db *sql.Connection, p *ProcessRunGetParam) (dList []*model.Pr
 
 	for rows.Next() {
 		d := &model.ProcessRun{}
-		if err := rows.Scan(&d.ID, &d.ProcessID, &d.Status, &d.Error, &d.CreatedOn, &d.UpdatedOn); err != nil {
+		var runTime int64
+		if err := rows.Scan(&d.ID, &d.ProcessID,
+			&d.Status, &runTime,
+			&d.Error, &d.CreatedOn, &d.UpdatedOn); err != nil {
+
 			return nil, 0, e.W(err, ECode030303)
 		}
+
+		d.RunTime = time.Duration(runTime) * time.Second
 
 		dList = append(dList, d)
 	}
@@ -85,24 +94,33 @@ func ProcessRunGet(db *sql.Connection, p *ProcessRunGetParam) (dList []*model.Pr
 }
 
 // ProcessRunCreate inserts a new record
-func ProcessRunCreate(db *sql.Connection, processID int) (id int, err error) {
+func ProcessRunCreate(db *sql.Connection, processID int) (pr *model.ProcessRun, err error) {
+	now := time.Now()
+	pr = &model.ProcessRun{
+		ProcessID: processID,
+		Status:    model.ProcessRunStatusRunning,
+		CreatedOn: now,
+		UpdatedOn: now,
+	}
 	sb := db.Insert(ProcessRunTable).
-		Columns("process_id", "process_run_status", "process_run_error", "created_on", "updated_on").
-		Values(processID, model.ProcessRunStatusRunning, "", "now()", "now()").
+		Columns("process_id", "process_run_status", "process_run_time", "process_run_error", "created_on", "updated_on").
+		Values(pr.ProcessID, pr.Status, pr.RunTime.Seconds(), pr.Error, pr.CreatedOn, pr.UpdatedOn).
 		Suffix("RETURNING process_run_id")
-	id, err = db.ExecInsertReturningID(sb)
+	pr.ID, err = db.ExecInsertReturningID(sb)
 	if err != nil {
-		return 0, e.W(err, ECode030304)
+		return nil, e.W(err, ECode030304)
 	}
 
-	return id, nil
+	return pr, nil
 }
 
 // ProcessRunComplete marks record as completed
-func ProcessRunComplete(db *sql.Connection, id int, msg string) (err error) {
+func ProcessRunComplete(db *sql.Connection, id int, msg string, runTime time.Duration) (err error) {
 	ub := db.Update(ProcessRunTable).
 		Set("process_run_status", model.ProcessRunStatusCompleted).
+		Set("process_run_time", runTime.Seconds()).
 		Set("process_run_error", msg).
+		Set("updated_on", db.Expr("NOW()")).
 		Where("process_run_id = ?", id)
 
 	if err := db.ExecUpdate(ub); err != nil {
@@ -113,10 +131,12 @@ func ProcessRunComplete(db *sql.Connection, id int, msg string) (err error) {
 }
 
 // ProcessRunFail marks record as failed
-func ProcessRunFail(db *sql.Connection, id int, msg string) (err error) {
+func ProcessRunFail(db *sql.Connection, id int, msg string, runTime time.Duration) (err error) {
 	ub := db.Update(ProcessRunTable).
 		Set("process_run_status", model.ProcessRunStatusFailed).
+		Set("process_run_time", runTime.Seconds()).
 		Set("process_run_error", msg).
+		Set("updated_on", "NOW()").
 		Where("process_run_id = ?", id)
 
 	if err := db.ExecUpdate(ub); err != nil {

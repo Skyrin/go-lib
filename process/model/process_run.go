@@ -9,9 +9,10 @@ const (
 )
 
 type ProcessRun struct {
-	ID        uint
-	ProcessID uint
+	ID        int
+	ProcessID int
 	Status    string
+	RunTime   time.Duration
 	Error     string
 	CreatedOn time.Time
 	UpdatedOn time.Time
