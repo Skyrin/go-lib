@@ -23,6 +23,7 @@ const (
 	ECode040Z07 = e.Code040Z + "07"
 	ECode040Z08 = e.Code040Z + "08"
 	ECode040Z09 = e.Code040Z + "09"
+	ECode040Z0A = e.Code040Z + "0A"
 )
 
 // DeploymentGrantGetParam get params
@@ -225,3 +226,18 @@ func DeploymentGrantPurgeByToken(db *sql.Connection, token string) (err error) {
 
 	return nil
 }
+
+// DeploymentGrantPurgeByExpiredRefreshToken purges all grants where the refresh token has expired and
+// is no longer useable (the token should have expired as well at this point because refresh tokens
+// are periodically updated when fetching new tokens)
+func DeploymentGrantPurgeByExpiredRefreshToken(db *sql.Connection, refreshTokenExpiry int) (err error) {
+	delB := db.Delete(DeploymentGrantTableName).
+		Where("arc_deployment_grant_refresh_token_expiry < ?", refreshTokenExpiry)
+
+	if err := db.ExecDelete(delB); err != nil {
+		return e.W(err, ECode040Z0A)
+	}
+
+	return nil
+}
+

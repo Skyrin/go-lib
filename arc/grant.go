@@ -21,6 +21,7 @@ const (
 	ECode040907 = e.Code0409 + "07"
 	ECode040908 = e.Code0409 + "08"
 	ECode040909 = e.Code0409 + "09"
+	ECode04090A = e.Code0409 + "0A"
 )
 
 // Grant
@@ -149,4 +150,15 @@ func GrantRefresh(db *sql.Connection, c *Client, credentialID int, token string)
 	}
 
 	return g, nil
+}
+
+// CleanExpiredGrants removes all grants where the refresh token has expired and is no longer usable.
+// Note, the token should also be unusable as refresh tokens are periodically rotated when fetching
+// new tokens
+func CleanExpiredGrants(db *sql.Connection, c *Client) (err error) {
+	if err := sqlmodel.DeploymentGrantPurgeByExpiredRefreshToken(db, int(time.Now().Unix())); err != nil {
+		return e.W(err, ECode04090A)
+	}
+
+	return nil
 }
