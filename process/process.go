@@ -23,11 +23,12 @@ const (
 	ECode030109 = e.Code0301 + "09"
 	ECode03010A = e.Code0301 + "0A"
 	ECode03010B = e.Code0301 + "0B"
-	// ECode03010C = e.Code0301 + "0C"
+	ECode03010C = e.Code0301 + "0C"
 	ECode03010D = e.Code0301 + "0D"
 	ECode03010E = e.Code0301 + "0E"
 	ECode03010F = e.Code0301 + "0F"
 	ECode03010G = e.Code0301 + "0G"
+	ECode03010H = e.Code0301 + "0H"
 )
 
 // Processor is used to create a singleton process. It ensures only
@@ -56,16 +57,43 @@ func NewProcessor(db *sql.Connection) (p *Processor) {
 	}
 }
 
-// Register will register the process. It will upsert the record into the
-// process table and create a reference in the processor to allow running
-// later. The application using this package should register all processes
-// on start to ensure they exist before trying to call them.
+// Register will register the process. If the process is already registered, it will 
+// return an error. If the process does not exist, it will create it. The application 
+// using this package should register all processes on start to ensure they exist before 
+// trying to call them.
 //
 // The run function will be invoked when the process is called later. It
 // creates a lock on the process (in the database) to ensure only one
 // can run at a time.The run func should define all data processing that
 // needs to occur for this run.
 func (p *Processor) Register(code, name string, f func() error) (err error) {
+	if err := p.register(code, name, nil, f); err != nil {
+		return e.W(err, ECode03010C)
+	}
+
+	return nil
+}
+
+// RegisterWithInterval will register the process with the specified interval.
+// If the process is already registered, it will return an error. If the process
+// does not exist, it will create it. The application using this package should 
+// register all processes on start to ensure they exist before trying to call them.
+//
+// The run function will be invoked when the process is called later. It
+// creates a lock on the process (in the database) to ensure only one
+// can run at a time. The run func should define all data processing that
+// needs to occur for this process.
+func (p *Processor) RegisterWithInterval(code, name string, interval time.Duration, f func() error) (err error) {
+	if err := p.register(code, name, &interval, f); err != nil {
+		return e.W(err, ECode03010H)
+	}
+
+	return nil
+}
+
+// register internal function to register a processor. Handles checking if the process already
+// exists and creating it if it does not exist
+func (p *Processor) register(code, name string, interval *time.Duration, f func() error) (err error) {
 	// Only allow registering a code once
 	if _, ok := p.runList[code]; ok {
 		return e.N(ECode030101,
@@ -85,6 +113,10 @@ func (p *Processor) Register(code, name string, f func() error) (err error) {
 			Code:   code,
 			Name:   name,
 			Status: model.ProcessStatusActive,
+		}
+
+		if interval != nil {
+			mp.Interval = *interval
 		}
 
 		id, err = sqlmodel.ProcessUpsert(p.db, mp)
