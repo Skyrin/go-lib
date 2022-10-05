@@ -72,6 +72,7 @@ func ProcessUpsert(db *sql.Connection, p *model.Process) (id int, err error) {
 func ProcessGet(db *sql.Connection, p *ProcessGetParam) (pList []*model.Process, count int, err error) {
 	fields := `process_id, process_code, process_name, process_status,
 		process_last_run_time, process_next_run_time, EXTRACT(EPOCH FROM process_interval)::INTEGER,
+		process_total_success, EXTRACT(MICROSECONDS FROM process_avg_run_time)::INTEGER,
 		process_message, created_on, updated_on`
 
 	if p.Limit == 0 {
@@ -128,17 +129,24 @@ func ProcessGet(db *sql.Connection, p *ProcessGetParam) (pList []*model.Process,
 	for rows.Next() {
 		d := &model.Process{}
 		lrt := &gosql.NullTime{}
-		var interval int64
+		successCount := gosql.NullInt64{}
+		var interval, averageRunTime int64
 		if err := rows.Scan(&d.ID, &d.Code, &d.Name, &d.Status,
 			lrt, &d.NextRunTime, &interval,
+			&successCount, &averageRunTime,
 			&d.Message, &d.CreatedOn, &d.UpdatedOn); err != nil {
 			return nil, 0, e.W(err, ECode030204)
 		}
 
 		d.Interval = time.Duration(interval) * time.Second
+		d.AverageRunTime = time.Duration(averageRunTime) * time.Microsecond // Average run time is extracted as micro seconds
 
 		if lrt.Valid {
 			d.LastRunTime = lrt.Time
+		}
+
+		if successCount.Valid {
+			d.SuccessCount = int(successCount.Int64)
 		}
 
 		pList = append(pList, d)
@@ -250,6 +258,30 @@ func ProcessSetRunTime(db *sql.Connection, id int) (err error) {
 	ub := db.Update(ProcessTable).
 		Set("process_last_run_time", db.Expr("NOW()")).
 		Set("process_next_run_time", db.Expr("NOW() + process_interval")).
+		Where("process_id=?", id)
+
+	if err := db.ExecUpdate(ub); err != nil {
+		return e.W(err, ECode030209, fmt.Sprintf("id: %d", id))
+	}
+
+	return nil
+}
+
+// ProcessSetLastSuccess sets the process's last successful run time as now and updates the process success
+// statistics, which include:
+//  1. The total number of successful runs
+//  2. The average run time
+func ProcessSetLastSuccess(db *sql.Connection, id int, runTime time.Duration) (err error) {
+	const setAvgRunTime = `MAKE_INTERVAL(secs =>
+		(COALESCE(EXTRACT(EPOCH FROM process_avg_run_time), 0) * COALESCE(process_total_success,0) + ?)
+		/ (COALESCE(process_total_success, 0) + 1)
+	)`
+
+	ub := db.Update(ProcessTable).
+		Set("process_last_run_time", db.Expr("NOW()")).
+		Set("process_total_success", db.Expr("COALESCE(process_total_success, 0) + 1")).
+		Set("process_avg_run_time",
+			db.Expr(setAvgRunTime, runTime.Seconds())).
 		Where("process_id=?", id)
 
 	if err := db.ExecUpdate(ub); err != nil {

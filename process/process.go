@@ -29,6 +29,7 @@ const (
 	ECode03010F = e.Code0301 + "0F"
 	ECode03010G = e.Code0301 + "0G"
 	ECode03010H = e.Code0301 + "0H"
+	ECode03010I = e.Code0301 + "0I"
 )
 
 // Processor is used to create a singleton process. It ensures only
@@ -57,9 +58,9 @@ func NewProcessor(db *sql.Connection) (p *Processor) {
 	}
 }
 
-// Register will register the process. If the process is already registered, it will 
-// return an error. If the process does not exist, it will create it. The application 
-// using this package should register all processes on start to ensure they exist before 
+// Register will register the process. If the process is already registered, it will
+// return an error. If the process does not exist, it will create it. The application
+// using this package should register all processes on start to ensure they exist before
 // trying to call them.
 //
 // The run function will be invoked when the process is called later. It
@@ -76,7 +77,7 @@ func (p *Processor) Register(code, name string, f func() error) (err error) {
 
 // RegisterWithInterval will register the process with the specified interval.
 // If the process is already registered, it will return an error. If the process
-// does not exist, it will create it. The application using this package should 
+// does not exist, it will create it. The application using this package should
 // register all processes on start to ensure they exist before trying to call them.
 //
 // The run function will be invoked when the process is called later. It
@@ -217,7 +218,7 @@ func (p *Processor) Run(code string) (rr *RunResponse, err error) {
 	now := time.Now()
 	if err := r.f(); err != nil {
 		// Set the runtime
-		rr.Run.RunTime = time.Now().Sub(now)
+		rr.Run.RunTime = time.Since(now)
 		// Set run status to failed, ignore error as we can't do much if
 		// it fails and we want to return the originating error
 		if err2 := sqlmodel.ProcessRunFail(p.db, rr.Run.ID, err.Error(), rr.Run.RunTime); err2 != nil {
@@ -228,12 +229,18 @@ func (p *Processor) Run(code string) (rr *RunResponse, err error) {
 	}
 
 	// Set the run time
-	rr.Run.RunTime = time.Now().Sub(now)
+	rr.Run.RunTime = time.Since(now)
 
 	// Set status of run to completed
 	if err := sqlmodel.ProcessRunComplete(p.db, rr.Run.ID, "", rr.Run.RunTime); err != nil {
 		rr.Run.Error = err.Error()
 		return rr, e.W(err, ECode03010B)
+	}
+
+	// Set the processes last successful run time
+	if err := sqlmodel.ProcessSetLastSuccess(dbLock, proc.ID, rr.Run.RunTime); err != nil {
+		rr.Run.Error = err.Error()
+		return rr, e.W(err, ECode03010I)
 	}
 
 	// Release the lock on this process
