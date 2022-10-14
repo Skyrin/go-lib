@@ -6,7 +6,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Masterminds/squirrel"
 	"github.com/Skyrin/go-lib/e"
 )
 
@@ -29,20 +28,19 @@ const (
 // BulkUpdate allows for multiple updates to be ran in a single query
 type BulkUpdate struct {
 	db                   *Connection
-	maxParamPerStatement int                    // The maximum number of parameters to send per statement
-	table                string                 // The name of the table to bulk update
-	columns              []BulkUpdateCol        // The column list to bulk update
-	whereColumns         []string               // The list of columns to use in the where clause
-	ib                   squirrel.UpdateBuilder // The current update builder
-	bindParamList        []interface{}          // The current list of parameters to bind to the statement
-	paramCount           int                    // The current parameter count
-	paramPerStatement    int                    // The number of parameters per statement
-	cache                map[int]*dsql.Stmt     // Stores cached statements, if enabled
-	enableCache          bool                   // Indicate whether to enable cache or not
-	mutex                sync.RWMutex           // Mutex for thread safe adding to bulk update
-	count                int                    // Keeps track of current number of calls to Add, since last Flush
-	total                int                    // Keeps track of total number of calls to Add
-	bindNumber           int                    // Used when building the statement, keeping track of the current bind variable
+	maxParamPerStatement int                // The maximum number of parameters to send per statement
+	table                string             // The name of the table to bulk update
+	columns              []BulkUpdateCol    // The column list to bulk update
+	whereColumns         []string           // The list of columns to use in the where clause
+	bindParamList        []interface{}      // The current list of parameters to bind to the statement
+	paramCount           int                // The current parameter count
+	paramPerStatement    int                // The number of parameters per statement
+	cache                map[int]*dsql.Stmt // Stores cached statements, if enabled
+	enableCache          bool               // Indicate whether to enable cache or not
+	mutex                sync.RWMutex       // Mutex for thread safe adding to bulk update
+	count                int                // Keeps track of current number of calls to Add, since last Flush
+	total                int                // Keeps track of total number of calls to Add
+	bindNumber           int                // Used when building the statement, keeping track of the current bind variable
 }
 
 // BulkUpdateCol defines the column name and type. If type is left empty, it will not be specified in the
@@ -152,7 +150,6 @@ func (bu *BulkUpdate) Add(values ...interface{}) (rowsUpdated int, err error) {
 
 	// Append the values to the bind list
 	bu.bindParamList = append(bu.bindParamList, values...)
-	// bu.ib = bu.ib.Values(values...)
 
 	// Increment the param count
 	bu.paramCount += bu.paramPerStatement
