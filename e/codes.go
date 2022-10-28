@@ -82,4 +82,16 @@ const (
 	Code0601 = "0601"
 	Code0602 = "0602"
 	Code0603 = "0603"
+
+	//package: pubsub
+	Code0701 = "0701" // package pubsub | pubsub/publish.go
+	Code0702 = "0702" // package pubsub | pubsub/subscriber.go
+	Code0703 = "0703" // package pubsub | pubsub/subscriber_notify.go
+	Code0704 = "0704" // package pubsub | pubsub/subscriber_process.go
+	Code0705 = "0705" // package pubsub/sqlmodel | pubsub/internal/sub_data_bulk.go
+	Code0706 = "0706" // package pubsub/sqlmodel | pubsub/internal/sqlmodel/pub.go
+	Code0707 = "0707" // package pubsub/sqlmodel | pubsub/internal/sqlmodel/sub.go
+	Code0708 = "0708" // package pubsub/sqlmodel | pubsub/internal/sqlmodel/data.go
+	Code0709 = "0709" // package pubsub/sqlmodel | pubsub/internal/sqlmodel/sub_data.go
+	Code070A = "070A" // package pubsub | pubsub/subscriber_batch.go
 )

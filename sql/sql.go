@@ -47,6 +47,7 @@ const (
 	ECode02030S = e.Code0203 + "0S"
 	ECode02030T = e.Code0203 + "0T"
 	ECode02030U = e.Code0203 + "0U"
+	ECode02030V = e.Code0203 + "0V"
 )
 
 // Connection wrapper of the *sql.DB
@@ -508,9 +509,17 @@ func (c *Connection) ToSQLWFieldAndQuery(sb sq.SelectBuilder, fields string) (ro
 
 // Prepare creates a prepared statement from the query
 func (c *Connection) Prepare(query string) (stmt *sql.Stmt, err error) {
+	if c.txn != nil {
+		stmt, err = c.txn.Prepare(query)
+		if err != nil {
+			return nil, e.W(err, ECode02030V, fmt.Sprintf("query: %s", query))
+		}
+		return stmt, nil
+	}
+
 	stmt, err = c.DB.Prepare(query)
 	if err != nil {
-		return nil, e.W(err, ECode02030S, fmt.Sprintf("query: %s"))
+		return nil, e.W(err, ECode02030S, fmt.Sprintf("query: %s", query))
 	}
 
 	return stmt, nil
