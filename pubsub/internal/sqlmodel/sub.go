@@ -62,8 +62,8 @@ func SubInsert(db *sql.Connection, input *model.Sub) (id int, err error) {
 	return id, nil
 }
 
-// SubSetRetries updates the status
-func SubSetSSubSetRetriestatus(db *sql.Connection, id, retries int) (err error) {
+// SubSetRetries set the retries
+func SubSetRetries(db *sql.Connection, id, retries int) (err error) {
 	ub := db.Update(SubTableName).
 		Where("dps_sub_id=?", id).
 		Set("dps_sub_retries", retries).

@@ -93,7 +93,6 @@ CREATE TABLE IF NOT EXISTS skyrin_dps_pub_sub_map (
 
 -- Defines publisher data table - storing the latest version and whether the record is marked as deleted
 CREATE TABLE IF NOT EXISTS skyrin_dps_data (
-	-- dps_data_id BIGSERIAL PRIMARY KEY NOT NULL,
 	dps_pub_id INT NOT NULL,
 	dps_data_type TEXT NOT NULL,
 	dps_data_id TEXT NOT NULL,
