@@ -178,6 +178,11 @@ func (sb *subBatch) add(sd *model.SubData) (err error) {
 // error, it will mark all pending records, that previously succeeded with the new error (incrementing the retry
 // and setting the status to failed when appropriate). It will then commit the status for the pending records.
 func (sb *subBatch) push() (err error) {
+	if len(sb.list) == 0 {
+		// Nothing to push
+		return nil
+	}
+
 	pushErr := sb.h.Push(sb.list)
 	// Iterate through the list, and set appropriate status based on if the push succeeded/failed
 	for i := range sb.list {
