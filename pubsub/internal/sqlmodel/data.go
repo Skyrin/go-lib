@@ -30,6 +30,9 @@ const (
 	ECode070805 = e.Code0708 + "05"
 	ECode070806 = e.Code0708 + "06"
 	ECode070807 = e.Code0708 + "07"
+	ECode070808 = e.Code0708 + "08"
+	ECode070809 = e.Code0708 + "09"
+	ECode07080A = e.Code0708 + "0A"
 )
 
 // DataGetParam model
@@ -45,6 +48,11 @@ type DataGetParam struct {
 	FlagForUpdate bool
 	OrderByID     string
 	DataHandler   func(*model.Data) error
+}
+
+// DataBulkInsert optimized way to upsert records
+type DataBulkInsert struct {
+	bi *sql.BulkInsert
 }
 
 // DataUpsert inserts a record, returning the version
@@ -143,4 +151,56 @@ func DataGet(db *sql.Connection,
 	}
 
 	return sList, count, nil
+}
+
+// NewDataBulkInsert initializes and returns a new bulk insert for creating/updating pub data
+// records. If updating, it will increment the version and update the deleted/json values
+// Note: whatever calls this must call Flush and Close when done
+func NewDataBulkInsert(db *sql.Connection) (sdbc *DataBulkInsert) {
+	sdbc = &DataBulkInsert{}
+	sdbc.bi, _ = sql.NewBulkInsert(db, DataTableName, DataColumns, DataUpsertOnConflict)
+
+	return sdbc
+}
+
+// Add adds the item to the bulk insert. If it saves to the database, it will return the
+// number of rows added
+func (b *DataBulkInsert) Add(d *model.Data) (rowsAdded int, err error) {
+	values, err := d.InsertValues()
+	if err != nil {
+		return 0, e.W(err, ECode070808)
+	}
+
+	rowsAdded, err = b.bi.Add(values...)
+	if err != nil {
+		return 0, e.W(err, ECode070809,
+			fmt.Sprintf("pubId: %d, data type: %s, data id: %s, deleted: %v, version: %d",
+				d.PubID, d.Type, d.ID, d.Deleted, d.Version))
+	}
+
+	return rowsAdded, nil
+}
+
+// Flush saves any pending records
+func (b *DataBulkInsert) Flush() (err error) {
+	if err = b.bi.Flush(); err != nil {
+		return e.W(err, ECode07080A)
+	}
+
+	return nil
+}
+
+// Close closes all open statements
+func (b *DataBulkInsert) Close() (errList []error) {
+	return b.bi.Close()
+}
+
+// GetCount returns the number of rows added since the last flush call
+func (b *DataBulkInsert) GetCount() (count int) {
+	return b.bi.GetCount()
+}
+
+// GetTotal returns the total number of rows added
+func (b *DataBulkInsert) GetTotal() (count int) {
+	return b.bi.GetTotal()
 }
