@@ -32,9 +32,9 @@ const (
 		dps_sub_data_message=EXCLUDED.dps_sub_data_message,
 		updated_on=NOW()
 		WHERE ` + SubDataTableName + `.dps_sub_data_version<EXCLUDED.dps_sub_data_version
-			OR (`+
-			SubDataTableName + `.dps_sub_data_version=EXCLUDED.dps_sub_data_version AND ` +
-			SubDataTableName + `.dps_sub_data_status='pending')`
+			OR (` +
+		SubDataTableName + `.dps_sub_data_version=EXCLUDED.dps_sub_data_version AND ` +
+		SubDataTableName + `.dps_sub_data_status='pending')`
 
 	stmtSubDataCreateFromData = `INSERT INTO ` + SubDataTableName + ` (` + SubDataColumns + `)
 		SELECT
@@ -46,7 +46,8 @@ const (
 		FROM ` + DataTableName + ` AS d
 		INNER JOIN ` + PubSubMapTableName + ` AS psm ON d.dps_pub_id=psm.dps_pub_id AND psm.dps_sub_id=$1
 		LEFT JOIN ` + SubDataTableName + ` AS sd 
-			ON d.dps_pub_id=sd.dps_pub_id AND d.dps_data_type =sd.dps_data_type AND d.dps_data_id =sd.dps_data_id
+			ON d.dps_pub_id=sd.dps_pub_id AND d.dps_data_type=sd.dps_data_type 
+				AND d.dps_data_id=sd.dps_data_id AND psm.dps_sub_id=sd.dps_sub_id
 		WHERE sd.dps_sub_id IS NULL
 		ON CONFLICT DO NOTHING`
 

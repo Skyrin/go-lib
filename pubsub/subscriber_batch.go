@@ -26,7 +26,7 @@ type subBatch struct {
 	db             *sql.Connection
 	s              *Subscriber
 	h              SubBatchHandler       // Called for each sub data record retrieved
-	list           []*Event             // Current batch of sub data to push
+	list           []*Event              // Current batch of sub data to push
 	bu             *sqlmodel.SubDataBulk // Bulk update for setting status of sub data
 	successCount   int                   // Count of succeeded, status set to completed
 	failRetryCount int                   // Count of failed, but will retry, status kept as pending
