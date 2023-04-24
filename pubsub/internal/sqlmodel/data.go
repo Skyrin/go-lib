@@ -33,6 +33,9 @@ const (
 	ECode070808 = e.Code0708 + "08"
 	ECode070809 = e.Code0708 + "09"
 	ECode07080A = e.Code0708 + "0A"
+	ECode07080B = e.Code0708 + "0B"
+	ECode07080C = e.Code0708 + "0C"
+	ECode07080D = e.Code0708 + "0D"
 )
 
 // DataGetParam model
@@ -128,6 +131,10 @@ func DataGet(db *sql.Connection,
 	}
 
 	stmt, bindList, err = sb.ToSql()
+	if err != nil {
+		return nil, 0, e.W(err, ECode07080D)
+	}
+
 	stmt = strings.Replace(stmt, "{fields}", fields, 1)
 	rows, err := db.Query(stmt, bindList...)
 	if err != nil {
@@ -151,6 +158,27 @@ func DataGet(db *sql.Connection,
 	}
 
 	return sList, count, nil
+}
+
+// DataGetByPubIDDataTypeAndDataID fetch the specific record
+func DataGetByPubIDDataTypeAndDataID(db *sql.Connection,
+	pubID int, dataType, dataID string) (d *model.Data, err error) {
+	p := &DataGetParam{
+		PubID: &pubID,
+		Type:  &dataType,
+		ID:    &dataID,
+	}
+
+	dList, _, err := DataGet(db, p)
+	if err != nil {
+		return nil, e.W(err, ECode07080B)
+	}
+
+	if len(dList) != 1 {
+		return nil, e.N(ECode07080C, "not found")
+	}
+
+	return dList[0], nil
 }
 
 // NewDataBulkInsert initializes and returns a new bulk insert for creating/updating pub data

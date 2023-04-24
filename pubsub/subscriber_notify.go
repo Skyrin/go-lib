@@ -30,19 +30,6 @@ const (
 	ECode07030C = e.Code0703 + "0C"
 )
 
-// Event the expected JSON from a skyrin_dps_notify call
-type Event struct {
-	PubID        int            `json:"pubId"`
-	Type         string         `json:"dataType"`
-	ID           string         `json:"dataId"`
-	Deleted      bool           `json:"deleted"`
-	Version      int            `json:"version"`
-	PreviousHash string         `json:"-"`
-	NewHash      string         `json:"-"`
-	NewJSON      []byte         `json:"-"`
-	sd           *model.SubData `json:"-"`
-}
-
 // SubDataListener defines the logic to send the publish event for a listening subscriber
 type SubDataListener interface {
 	// Send should send the publish event for the subscriber, returning the hash of the
