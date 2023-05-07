@@ -139,8 +139,10 @@ func getAllPendingAndFailed(db *sql.Connection, service string, done <-chan stru
 	itemCh := make(chan *model.SyncQueue)
 	errCh := make(chan error, 1)
 
+	limit := uint64(50000)
 	// Get all items that are pending to be synced to algolia
 	p := &sqlmodel.SyncQueueGetParam{
+		Limit: &limit,
 		Service: &[]string{service},
 		Status:  &[]string{model.SyncQueueStatusPending, model.SyncQueueStatusFailed},
 		DataHandler: func(as *model.SyncQueue) error {

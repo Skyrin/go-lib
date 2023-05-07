@@ -266,25 +266,16 @@ func SyncQueueGet(db *sql.Connection,
 		sb = sb.Offset(uint64(*p.Offset))
 	}
 
-	orderByDefault := true
-
 	if p.OrderByID != "" {
 		sb = sb.OrderBy(fmt.Sprintf("sync_queue_id %s", p.OrderByID))
-		orderByDefault = false
 	}
 
 	if p.OrderByService != "" {
 		sb = sb.OrderBy(fmt.Sprintf("sync_queue_service %s", p.OrderByService))
-		orderByDefault = false
 	}
 
 	if p.OrderByUpdatedOn != "" {
 		sb = sb.OrderBy(fmt.Sprintf("updated_on %s", p.OrderByUpdatedOn))
-		orderByDefault = false
-	}
-
-	if orderByDefault {
-		sb = sb.OrderBy(fmt.Sprintf("%s %s", SyncQueueDefaultSortBy, "asc"))
 	}
 
 	stmt, bindList, err = sb.ToSql()
