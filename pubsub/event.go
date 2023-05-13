@@ -18,6 +18,7 @@ type Event struct {
 	NewHash      string         `json:"-"`
 	NewJSON      []byte         `json:"-"`
 	sd           *model.SubData `json:"-"`
+	err          error          `json:"-"`
 }
 
 // GetEventJSON retrieves the new JSON from the event record
@@ -28,4 +29,10 @@ func (ev *Event) GetEventJSON(db *sql.Connection) (b []byte, err error) {
 	}
 
 	return d.JSON, nil
+}
+
+// Error sets an error for the event. If an error is set for an event, it will be automatically
+// saved with the event when the status is updated
+func (ev *Event) Error(err error) {
+	ev.err = err
 }

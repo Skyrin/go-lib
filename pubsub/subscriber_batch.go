@@ -187,7 +187,14 @@ func (sb *subBatch) push() (err error) {
 	// Iterate through the list, and set appropriate status based on if the push succeeded/failed
 	for i := range sb.list {
 		n := sb.list[i]
-		n.sd.SetResponse(n.NewHash, n.NewJSON, pushErr, n.Version, n.Deleted, sb.s.sub)
+		// If an error was set for this particular event, then use that in the response
+		var tmpErr error
+		if sb.list[i].err != nil {
+			tmpErr = sb.list[i].err
+		} else {
+			tmpErr = pushErr
+		}
+		n.sd.SetResponse(n.NewHash, n.NewJSON, tmpErr, n.Version, n.Deleted, sb.s.sub)
 
 		// Increment count of success/retry/fail
 		switch n.sd.Status {
