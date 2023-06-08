@@ -121,6 +121,16 @@ func (bu *BulkUpdate) GetCount() (count int) {
 	return bu.count
 }
 
+// GetAbsoluteMaxParamPerUpdate returns the maximum number of columns that is allowed to be added to the bulk update
+func (bu *BulkUpdate) GetAbsoluteMaxParamPerUpdate() (count int) {
+	return AbsoluteMaxParamPerUpdate
+}
+
+// GetParamPerStatement returns the number of params that have been assigned to each statement
+func (bu *BulkUpdate) GetParamPerStatement() (count int) {
+	return bu.paramPerStatement
+}
+
 // GetTotal returns the total number of rows that have been added to the bulk update
 // since it was initialized
 func (bu *BulkUpdate) GetTotal() (total int) {
