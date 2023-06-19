@@ -26,6 +26,8 @@ const (
 	ECode070607 = e.Code0706 + "07"
 	ECode070608 = e.Code0706 + "08"
 	ECode070609 = e.Code0706 + "09"
+	ECode07060A = e.Code0706 + "0A"
+	ECode07060B = e.Code0706 + "0B"
 )
 
 // PubGetParam model
@@ -162,7 +164,7 @@ func PubGet(db *sql.Connection,
 	return sList, count, nil
 }
 
-// PubGetBySubID get by code
+// PubGetBySubID get by sub id
 func PubGetBySubID(db *sql.Connection, subID int, f func(*model.Pub) error) (pList []*model.Pub, err error) {
 	pList, _, err = PubGet(db, &PubGetParam{
 		SubID:       &subID,
@@ -174,3 +176,19 @@ func PubGetBySubID(db *sql.Connection, subID int, f func(*model.Pub) error) (pLi
 
 	return pList, nil
 }
+
+// PubGetByCode get by code
+func PubGetByCode(db *sql.Connection, code string) (p *model.Pub, err error) {
+	pList, _, err := PubGet(db, &PubGetParam{
+		Code:       &code,
+	})
+	if err != nil {
+		return nil, e.W(err, ECode07060A)
+	}
+
+	if len(pList) == 0 {
+		return nil, e.N(ECode07060B, "publisher does not exist")
+	}
+	return pList[0], nil
+}
+

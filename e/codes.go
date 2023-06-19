@@ -95,6 +95,7 @@ const (
 	Code0709 = "0709" // package pubsub/sqlmodel | pubsub/internal/sqlmodel/sub_data.go
 	Code070A = "070A" // package pubsub | pubsub/subscriber_batch.go
 	Code070B = "070B" // package pubsub | pubsub/subscriber_batch_queue.go
+	Code070C = "070C" // package pubsub | pubsub/publisher.go
 
 	//package: kafka_aws_ec2
 	Code0800 = "0800" // package kafka | kafka/connection.go
