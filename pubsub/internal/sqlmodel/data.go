@@ -232,3 +232,25 @@ func (b *DataBulkInsert) GetCount() (count int) {
 func (b *DataBulkInsert) GetTotal() (count int) {
 	return b.bi.GetTotal()
 }
+
+// SetMaxRowPerInsert sets the maximum rows to insert at a time. If the specified
+// number of rows makes the parameters per insert exceed the absolute max, then
+// the max rows will be decremented until it falls into an allowed range
+func (b *DataBulkInsert) SetMaxRowPerInsert(maxRows uint) (actualMaxRows uint) {
+	return b.bi.SetMaxRowPerInsert(maxRows)
+}
+
+// GetMaxRowPerInsert gets the currently set maximum rows to insert at a time.
+func (b *DataBulkInsert) GetMaxRowPerInsert() (maxRowPerInsert uint) {
+	return b.bi.GetMaxRowPerInsert()
+}
+
+// SetPreInsert assigns a pre insert func to call, or unassigns if nil
+func (b *DataBulkInsert) SetPreInsert(f func() error) {
+	b.bi.SetPreInsert(f)
+}
+
+// SetPostInsert assigns a post insert func to call, or unassigns if nil
+func (b *DataBulkInsert) SetPostInsert(f func(rowCount int) error) {
+	b.bi.SetPostInsert(f)
+}
