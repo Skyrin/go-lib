@@ -5,6 +5,7 @@ import (
 	"github.com/Skyrin/go-lib/pubsub/internal/sqlmodel"
 	"github.com/Skyrin/go-lib/pubsub/model"
 	"github.com/Skyrin/go-lib/sql"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -19,6 +20,8 @@ const (
 	ECode070A08 = e.Code070A + "08"
 	ECode070A09 = e.Code070A + "09"
 	ECode070A0A = e.Code070A + "0A"
+	ECode070A0B = e.Code070A + "0B"
+	ECode070A0C = e.Code070A + "0C"
 )
 
 // subBatch use to process pending subscriber data records
@@ -47,6 +50,7 @@ type SubBatchHandler interface {
 // RunBatch runs the batch process for the specified number of records (batchLimit)
 func (s *Subscriber) RunBatch(sbh SubBatchHandler, batchSize, batchLimit int) (err error) {
 	s.batchHandler = sbh
+	log.Warn().Msg("pubsub.Subscriber.RunBatch is deprecated, use Populate, Run and/or PopulateAndRun instead")
 
 	// Create/update records for the sub from the pub
 	if err := s.createMissingAndUpdateExisting(); err != nil {
@@ -56,6 +60,49 @@ func (s *Subscriber) RunBatch(sbh SubBatchHandler, batchSize, batchLimit int) (e
 	// Contiuously loop until batch limit is reached
 	if err := s.loop(batchSize, batchLimit); err != nil {
 		return e.W(err, ECode070A02)
+	}
+
+	return nil
+}
+
+// Populate creates missing and updates existing sub data records
+func (s *Subscriber) Populate() (err error) {
+	// Create/update records for the sub from the pub
+	if err := s.createMissingAndUpdateExisting(); err != nil {
+		return e.W(err, ECode070A01)
+	}
+
+	return nil
+}
+
+// Run runs the batch process for the specified number of records (batchLimit)
+func (s *Subscriber) Run(sbh SubBatchHandler, batchSize, batchLimit int) (err error) {
+	s.batchHandler = sbh
+
+	// Continuously loop until batch limit is reached
+	if s.maxGoRoutines > 1 {
+		if err := s.loopParallel(batchSize, batchLimit); err != nil {
+			return e.W(err, ECode070A0A)
+		}
+	} else {
+		if err := s.loop(batchSize, batchLimit); err != nil {
+			return e.W(err, ECode070A02)
+		}
+	}
+
+	return nil
+}
+
+// PopulateAndRun helper that calls Populate then Run
+func (s *Subscriber) PopulateAndRun(sbh SubBatchHandler, batchSize, batchLimit int) (err error) {
+	// Create/update records for the sub from the pub
+	if err := s.Populate(); err != nil {
+		return e.W(err, ECode070A0B)
+	}
+
+	// Run through the batch
+	if err := s.Run(sbh, batchSize, batchLimit); err != nil {
+		return e.W(err, ECode070A0C)
 	}
 
 	return nil

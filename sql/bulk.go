@@ -23,6 +23,7 @@ const (
 	ECode020708 = e.Code0207 + "08"
 	ECode020709 = e.Code0207 + "09"
 	ECode02070A = e.Code0207 + "0A"
+	ECode02070B = e.Code0207 + "0B"
 )
 
 // BulkInsert allows for multiple inserts to be ran in a single query, speeding up
@@ -36,6 +37,8 @@ type BulkInsert struct {
 	ib                squirrel.InsertBuilder // The current insert builder
 	paramCount        int                    // The current parameter count
 	paramPerStatement int                    // The number of parameters per statement
+	preInsert         func() error           // Called immediately before an insert is executed
+	postInsert        func(int) error        // Called after an insert has been executed
 	cache             map[int]*dsql.Stmt     // Stores cached statements, if enabled
 	enableCache       bool                   // Indicate whether to enable cache or not
 	mutex             sync.RWMutex           // Mutex for thread safe adding to bulk insert
@@ -78,6 +81,49 @@ func (bi *BulkInsert) SetMaxParamPerInsert(i int) {
 	}
 
 	bi.maxParamPerInsert = i
+}
+
+// SetMaxRowPerInsert sets the max rows per insert. If the specified number of rows
+// makes the parameters per insert exceed the absolute max, then the max rows will be
+// decremented until it falls into the allowed range. The number of parameters is
+// equal to the maxRows multiplied by the params per statement (number of columns
+// in the insert)
+func (bi *BulkInsert) SetMaxRowPerInsert(maxRows uint) (actualMaxRows uint) {
+	for {
+		if int(maxRows)*bi.paramPerStatement > AbsoluteMaxParamPerInsert {
+			maxRows--
+			if maxRows == 0 {
+				bi.SetMaxParamPerInsert(0)
+				return 0
+			}
+			continue
+		}
+		bi.SetMaxParamPerInsert(int(maxRows) * bi.paramPerStatement)
+		break
+	}
+
+	return maxRows
+}
+
+// GetMaxRowPerInsert gets the current max rows per insert (maximum params per 
+// insert divided by the params per statement).
+func (bi *BulkInsert) GetMaxRowPerInsert() (maxRows uint) {
+	return uint(bi.maxParamPerInsert / bi.paramPerStatement)
+}
+
+// GetColumnCount returns the number of columns in the bulk insert
+func (bi *BulkInsert) GetColumnCount() (colCount int) {
+	return bi.paramPerStatement
+}
+
+// SetPreInsert sets the pre insert func, called right before an insert is executed
+func (bi *BulkInsert) SetPreInsert(f func() error) {
+	bi.preInsert = f
+}
+
+// SetPreInsert sets the pre insert func, called right before an insert is executed
+func (bi *BulkInsert) SetPostInsert(f func(rowCount int) error) {
+	bi.postInsert = f
 }
 
 // EnableCache enables caching of bulk insert statements. If used, Close must be called when finished
@@ -199,6 +245,13 @@ func (bi *BulkInsert) begin() {
 
 // exec runs the insert statement
 func (bi *BulkInsert) exec() (err error) {
+	// If preInsert is set, call it
+	if bi.preInsert != nil {
+		if err := bi.preInsert(); err != nil {
+			return e.W(err, ECode020706)
+		}
+	}
+
 	if bi.Suffix != "" {
 		bi.ib = bi.ib.Suffix(bi.Suffix)
 	}
@@ -229,5 +282,11 @@ func (bi *BulkInsert) exec() (err error) {
 		}
 	}
 
+	// If post insert is set, call it
+	if bi.postInsert != nil {
+		if err := bi.postInsert(bi.count); err != nil {
+			return e.W(err, ECode02070B)
+		}
+	}
 	return nil
 }
