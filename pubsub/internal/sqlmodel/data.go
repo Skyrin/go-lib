@@ -90,7 +90,7 @@ func DataGet(db *sql.Connection,
 	}
 
 	if p.PubID != nil {
-		sb = sb.Where("dps_data_id=?", *p.ID)
+		sb = sb.Where("dps_pub_id=?", *p.PubID)
 	}
 
 	if p.Type != nil {
