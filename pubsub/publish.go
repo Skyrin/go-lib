@@ -92,7 +92,7 @@ func PublishList(db *sql.Connection, list []PublishParam) (successCount int, err
 		}
 		if rowsUpdated > 0 {
 			// Reset duplicates since records were saved
-			duplicates = nil
+			duplicates = make(map[string]*model.Data, 0)
 		}
 		successCount += rowsUpdated
 	}
