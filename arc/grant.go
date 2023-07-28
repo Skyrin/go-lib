@@ -22,6 +22,8 @@ const (
 	ECode040908 = e.Code0409 + "08"
 	ECode040909 = e.Code0409 + "09"
 	ECode04090A = e.Code0409 + "0A"
+	ECode04090B = e.Code0409 + "0B"
+	ECode04090C = e.Code0409 + "0C"
 )
 
 // Grant
@@ -161,4 +163,17 @@ func CleanExpiredGrants(db *sql.Connection, c *Client) (err error) {
 	}
 
 	return nil
+}
+
+// GetGrant returns the grant associated with the token if it exists
+func GetGrant(db *sql.Connection, token string) (dg *model.DeploymentGrant, err error) {
+	dg, err = sqlmodel.DeploymentGrantGetByToken(db, token)
+	if err != nil {
+		if e.ContainsError(err, sqlmodel.ECode040Z01) {
+			return nil, e.N(ECode04090B, "does not exist")
+		}
+		return nil, e.W(err, ECode04090C)
+	}
+
+	return dg, nil
 }
