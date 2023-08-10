@@ -93,11 +93,11 @@ func DeploymentGet(db *sql.Connection,
 		From(DeploymentTableName).
 		Limit(p.Limit)
 
-	if p.ID != nil && *p.ID > 0 {
+	if p.ID != nil {
 		sb = sb.Where("arc_deployment_id=?", *p.ID)
 	}
 
-	if p.Code != nil && len(*p.Code) > 0 {
+	if p.Code != nil {
 		sb = sb.Where("arc_deployment_code=?", *p.Code)
 	}
 

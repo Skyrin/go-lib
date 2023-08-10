@@ -1,19 +1,19 @@
 // Package arc provides the necessary calls to publish notifications to the arc system
 // Basic Usage sample:
 //
-// 	Create a new client and set the base url for the service
+//	Create a new client and set the base url for the service
 //	client := arc.NewClient("https://example.com")
 //
-// 	You also have the ability to set the URL and path by using SetBaseURL and SetPath
-// 	Create a request, replace with the appropriate values for eventCode and publishKey
+//	You also have the ability to set the URL and path by using SetBaseURL and SetPath
+//	Create a request, replace with the appropriate values for eventCode and publishKey
 //	req := arc.CreateArcsignalEventPublishRequest("eventCode",
 //		"publishKey",
 //		err)
 //
-// 	Add at least one request, can add several
+//	Add at least one request, can add several
 //	client.AddRequest(req)
 //
-// 	Send the request
+//	Send the request
 //	if err := client.Send(); err != nil {
 //		return err
 //	}
@@ -64,6 +64,7 @@ const (
 	ECode04010H = e.Code0401 + "0H"
 	ECode04010I = e.Code0401 + "0I"
 	ECode04010J = e.Code0401 + "0J"
+	ECode04010K = e.Code0401 + "0K"
 )
 
 // Client handles the posting/making arc requests to an arc API server
@@ -91,15 +92,18 @@ func NewClient(url string) (c *Client) {
 }
 
 // Close the client
-func (c *Client) Close() {
+func (c *Client) Close() (err error) {
 	if c.deployment != nil && c.deployment.DB != nil {
-		_ = c.deployment.DB.DB.Close()
+		if err := c.deployment.DB.DB.Close(); err != nil {
+			return e.W(err, ECode04010K)
+		}
 	}
+
+	return nil
 }
 
 // NewClientFromDeployment initializes a client from the arc_deployments table
-func NewClientFromDeployment(cp *sql.ConnParam,
-	deploymentCode, storeCode string) (c *Client, err error) {
+func NewClientFromDeployment(cp *sql.ConnParam, deploymentCode string) (c *Client, err error) {
 
 	db, err := sql.NewPostgresConn(cp)
 	if err != nil {
@@ -115,8 +119,6 @@ func NewClientFromDeployment(cp *sql.ConnParam,
 	if err != nil {
 		return nil, e.W(err, ECode040103)
 	}
-
-	deployment.StoreCode = storeCode
 
 	c = &Client{
 		BaseURL:    d.ManageURL,
@@ -374,5 +376,12 @@ func (c *Client) Log(ee *e.ExtendedError) {
 		d.Model.LogEventCode, d.Model.LogPublishKey, msg); err != nil {
 		log.Error().Err(err).Msgf("Error sending to arc log: %s\n%+v",
 			ee.Message, ee.Error())
+	}
+}
+
+// SetStoreCode sets the deployment's store code
+func (c *Client) SetStoreCode(storeCode string) {
+	if c.deployment != nil {
+		c.deployment.StoreCode = storeCode
 	}
 }
