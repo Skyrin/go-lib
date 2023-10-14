@@ -34,9 +34,10 @@ type Grant struct {
 	RefreshToken       string `json:"refreshToken"`
 	RefreshTokenExpiry int    `json:"refreshTokenExpiry"`
 	TokenType          string `json:"tokenType"`
+	ArcUserID          int    `json:"userId"`
 }
 
-// IsExpired returns if this grant's token has expired
+// IsAboutToExpireExpire returns true if this grant's token is about to expire (within 60 seconds)
 func (g *Grant) IsAboutToExpireExpire() bool {
 	return g.TokenExpiry < int(time.Now().Unix())-60
 }

@@ -81,12 +81,6 @@ func (c *Client) GrantLogin(credentialID int, username, password string) (g *Gra
 		return nil, e.W(err, ECode040805)
 	}
 
-	// Get the arc user id associated with this token
-	gui, err := c.GrantUserinfo(g.Token)
-	if err != nil {
-		return nil, e.W(err, ECode040806)
-	}
-
 	// Save the grant in the arc_deployment_grant table.
 	// Initial implementation will treat the token like a session. However, it will
 	// use the refresh token's expiry to determine when the token has expired.
@@ -100,7 +94,7 @@ func (c *Client) GrantLogin(credentialID int, username, password string) (g *Gra
 	// If in the future a real session is needed, this table/logic will be modifed
 	if _, err := sqlmodel.DeploymentGrantInsert(c.deployment.DB, &sqlmodel.DeploymentGrantInsertParam{
 		DeploymentID:       c.deployment.Model.ID,
-		ArcUserID:          gui.ID,
+		ArcUserID:          g.ArcUserID,
 		CredentialID:       credential.ID,
 		Token:              g.Token,
 		TokenExpiry:        g.TokenExpiry,
