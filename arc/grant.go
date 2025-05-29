@@ -42,6 +42,12 @@ func (g *Grant) IsAboutToExpireExpire() bool {
 	return g.TokenExpiry < int(time.Now().Unix())-60
 }
 
+// RefreshTokenIsAboutToExpireExpire returns true if this grant's refresh token is about to
+// expire (within 60 seconds)
+func (g *Grant) RefreshTokenIsAboutToExpireExpire() bool {
+	return g.RefreshTokenExpiry < int(time.Now().Unix())-60
+}
+
 func SQLDeploymentGrantToGrant(dg *model.DeploymentGrant) (g *Grant) {
 	return &Grant{
 		Token:              dg.Token,
