@@ -65,6 +65,11 @@ const (
 	ECode04010I = e.Code0401 + "0I"
 	ECode04010J = e.Code0401 + "0J"
 	ECode04010K = e.Code0401 + "0K"
+	ECode04010L = e.Code0401 + "0L"
+	ECode04010M = e.Code0401 + "0M"
+	ECode04010N = e.Code0401 + "0N"
+	ECode04010O = e.Code0401 + "0O"
+	ECode04010P = e.Code0401 + "0P"
 )
 
 // Client handles the posting/making arc requests to an arc API server
@@ -137,47 +142,9 @@ func (c *Client) Connect() (err error) {
 		return e.N(ECode040104, "no deployment configured")
 	}
 
-	if c.deployment.Model.Token == "" {
-		// If no access token then retrieve one from arc and save it
-		g, err := grantClientCredentials(c, c.deployment.Model.ClientID,
-			c.deployment.Model.ClientSecret)
-		if err != nil {
-			return e.W(err, ECode040105)
-		}
-		c.grant = g
-		// Update DB record
-		if err := c.deployment.UpdateGrant(g); err != nil {
-			return e.W(err, ECode040106)
-		}
-		return nil
-	}
-
-	// Else, ensure the token is valid/refreshed
-	c.grant = &Grant{
-		Token:              c.deployment.Model.Token,
-		TokenExpiry:        c.deployment.Model.TokenExpiry,
-		RefreshToken:       c.deployment.Model.RefreshToken,
-		RefreshTokenExpiry: c.deployment.Model.RefreshTokenExpiry,
-	}
-
-	// Ensure the token is valid
-	refreshed, err := c.grant.refresh(c, c.deployment.Model.ClientID,
-		c.deployment.Model.ClientSecret, false)
-	if err != nil {
-		if e.ContainsError(err, e.MsgInvalidGrant) {
-			// Failed to refresh, maybe refresh token expired - so try
-			// to get using client credentials
-			c.deployment.Model.Token = ""
-			return c.Connect()
-		}
-		return e.W(err, ECode040107)
-	}
-
-	// If it was refreshed, then save to DB
-	if refreshed {
-		if err := c.deployment.UpdateGrant(c.grant); err != nil {
-			return e.W(err, ECode040108)
-		}
+	// Initialize or refresh the authentication token
+	if err = c.refresh(false); err != nil {
+		return e.W(err, ECode040105)
 	}
 
 	return nil
@@ -384,4 +351,80 @@ func (c *Client) SetStoreCode(storeCode string) {
 	if c.deployment != nil {
 		c.deployment.StoreCode = storeCode
 	}
+}
+
+// refresh refreshes the grant if it doesn't exist, is about to expire, or if
+// force is true
+func (c *Client) refresh(force bool) (err error) {
+
+	if c.grant == nil {
+		// Initialize grant
+		c.grant = &Grant{
+			Token:              c.deployment.Model.Token,
+			TokenExpiry:        c.deployment.Model.TokenExpiry,
+			RefreshToken:       c.deployment.Model.RefreshToken,
+			RefreshTokenExpiry: c.deployment.Model.RefreshTokenExpiry,
+		}
+	}
+
+	// If not forced or isn't about to expire, then do nothing
+	if !force && !c.grant.IsAboutToExpireExpire() {
+		return nil
+	}
+
+	// If no token yet or if the refresh token is about to, or has already expired, then
+	// get using client credentials
+	if c.grant.Token == "" || c.grant.RefreshTokenIsAboutToExpireExpire() {
+		// If no access token then retrieve one from arc and save it
+		c.grant, err = grantClientCredentials(c, c.deployment.Model.ClientID,
+			c.deployment.Model.ClientSecret)
+		if err != nil {
+			return e.W(err, ECode04010L)
+		}
+
+		// Update DB record
+		if err := c.deployment.UpdateGrant(c.grant); err != nil {
+			return e.W(err, ECode04010M)
+		}
+
+		return nil
+	}
+
+	ri := &RequestItem{
+		Service: "core",
+		Action:  "oauth2.Grant.refreshToken",
+		Params: []interface{}{
+			c.deployment.Model.ClientID,
+			c.deployment.Model.ClientSecret,
+			c.grant.RefreshToken,
+		},
+	}
+
+	res, err := c.sendSingleRequestItem(c.deployment.getManageCoreServiceURL(), ri, nil)
+	if err != nil {
+		return e.W(err, ECode04010N)
+	}
+
+	var tmpGrant *Grant
+	if res.Data != nil {
+		tmpGrant = &Grant{}
+		if err := json.Unmarshal(res.Data, tmpGrant); err != nil {
+			return e.W(err, ECode04010O)
+		}
+	}
+
+	c.grant.Token = tmpGrant.Token
+	c.grant.TokenExpiry = tmpGrant.TokenExpiry
+	if tmpGrant.RefreshToken != "" {
+		c.grant.RefreshToken = tmpGrant.RefreshToken
+		c.grant.RefreshTokenExpiry = tmpGrant.RefreshTokenExpiry
+	}
+	c.grant.Scope = tmpGrant.Scope
+
+	// Save new grant to DB
+	if err := c.deployment.UpdateGrant(c.grant); err != nil {
+		return e.W(err, ECode04010P)
+	}
+
+	return nil
 }
