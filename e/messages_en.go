@@ -9,8 +9,9 @@ const (
 	MsgForbidden                  = "Forbidden"
 
 	// migrations
-	MsgMigrationCodeVersionDNE         = "Migration code/version does not exist"
-	MsgMigrationNotInstalled           = "Migrations library not installed"
+	MsgMigrationCodeVersionDNE = "Migration code/version does not exist"
+	MsgMigrationNotInstalled   = "Migrations library not installed"
+	// MsgMigrationDoesNotExist           = "does not exist (SQLSTATE 42P01)"
 	MsgMigrationNone                   = "No migrations exist yet"
 	MsgMigrationFileNameInvalid        = "Invalid migration file name"
 	MsgMigrationFileNameVersionInvalid = "Invalid migration file name version"

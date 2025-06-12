@@ -19,6 +19,11 @@ const (
 	Code0002 = "0002" // package:migration | migration/migration_list.go
 	Code0003 = "0003" // package:migration/sqlmodel | migration/sqlmodel/migration.go
 
+	// package: migrationpgx
+	Code0101 = "0101" // package:migrationpgx | migration/migration.go
+	Code0102 = "0102" // package:migrationpgx | migration/migration_list.go
+	Code0103 = "0103" // package:migrationpgx/sqlmodel | migration/sqlmodel/migration.go
+
 	// package: sql
 	Code0201 = "0201" // package:sql | sql/count.go
 	Code0202 = "0202" // package:sql | sql/row.go
@@ -50,20 +55,20 @@ const (
 	Code040B = "040B" // package:arc/sqlmodel | arc/sqlmodel/credential.go
 	Code040C = "040C" // package:arc/sqlmodel | arc/sqlmodel/data.go
 	Code040D = "040D" // package:arc/sqlmodel | arc/sqlmodel/deployment.go
-	// Code040E = "040E"
-	// Code040F = "040F"
-	// Code040G = "040G"
-	// Code040H = "040H"
-	// Code040I = "040I"
-	// Code040J = "040J"
-	// Code040K = "040K"
-	// Code040L = "040L"
-	// Code040M = "040M"
-	// Code040N = "040N"
-	// Code040O = "040O"
-	// Code040P = "040P"
-	// Code040Q = "040Q"
-	// Code040R = "040R"
+	Code040E = "040E"
+	Code040F = "040F"
+	Code040G = "040G"
+	Code040H = "040H"
+	Code040I = "040I"
+	Code040J = "040J"
+	Code040K = "040K"
+	Code040L = "040L"
+	Code040M = "040M"
+	Code040N = "040N"
+	Code040O = "040O"
+	Code040P = "040P"
+	Code040Q = "040Q"
+	Code040R = "040R"
 	// Code040S = "040S"
 	// Code040T = "040T"
 	// Code040U = "040U"
@@ -101,4 +106,21 @@ const (
 	//package: kafka_aws_ec2
 	Code0800 = "0800" // package kafka | kafka/connection.go
 	Code0801 = "0801" // package kafka_aws_ec2 | kafka/aws/ec2/sasl.go
+
+	// package: sqlpgx
+	Code0901 = "0901" // package:sqlpgx | sqlpgx/count.go
+	Code0902 = "0902" // package:sqlpgx | sqlpgx/row.go
+	Code0903 = "0903" // package:sqlpgx | sqlpgx/sql.go
+	Code0904 = "0904" // package:sqlpgx | sqlpgx/status.go
+	Code0905 = "0905" // package:sqlpgx | sqlpgx/txn.go
+	Code0906 = "0906" // package:sqlpgx | sqlpgx/rows.go
+	Code0907 = "0907" // package:sqlpgx | sqlpgx/bulk.go
+	Code0908 = "0908" // package:sqlpgx | sqlpgx/statement.go
+	Code0909 = "0909" // package:sqlpgx | sqlpgx/bulk_update.go
+
+	// package: processpgx
+	Code0A01 = "0A01" // package:processpgx | processpgx/process.go
+	Code0A02 = "0A02" // package:sqlmodel | processpgx/internal/sqlmodel/process.go
+	Code0A03 = "0A03" // package:sqlmodel | processpgx/internal/sqlmodel/process_run.go
+	Code0A04 = "0A04" // package:processpgx | processpgx/queue.go
 )
