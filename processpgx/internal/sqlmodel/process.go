@@ -55,7 +55,7 @@ func ProcessUpsert(ctx context.Context, db *sql.Connection, p *model.Process) (i
 			"process_next_run_time", "process_interval",
 			"process_message", "created_on", "updated_on").
 		Values(p.Code, p.Name, model.ProcessStatusActive,
-			p.NextRunTime, p.Interval.Seconds(),
+			p.NextRunTime, p.Interval,
 			"", "now()", "now()").
 		Suffix(`ON CONFLICT ON CONSTRAINT process__ukey DO UPDATE
 		SET process_name=excluded.process_name, updated_on=now()
