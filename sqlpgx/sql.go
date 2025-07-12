@@ -337,7 +337,7 @@ func (c *Connection) Rollback(ctx context.Context) {
 		// return e.W(nil, "Connection.Rollback.1 - not in txn", "")
 	}
 
-	if err := c.txn.Rollback(ctx); err != nil {
+	if err := c.Txn().Rollback(ctx); err != nil {
 		log.Error().Err(err).Msg("[Connection.Rollback.2]")
 		return
 		// TODO: replace with this (Rollback needs to return an error)
