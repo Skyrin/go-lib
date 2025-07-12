@@ -48,8 +48,11 @@ const (
 	ECode09030S = e.Code0903 + "0S"
 	ECode09030T = e.Code0903 + "0T"
 	ECode09030U = e.Code0903 + "0U"
-	// ECode09030V = e.Code0903 + "0V"
-	// ECode09030W = e.Code0903 + "0W"
+	ECode09030V = e.Code0903 + "0V"
+	ECode09030W = e.Code0903 + "0W"
+	ECode09030X = e.Code0903 + "0X"
+	ECode09030Y = e.Code0903 + "0Y"
+	ECode09030Z = e.Code0903 + "0Z"
 )
 
 // Connection wrapper of the *pgxpool.Pool
@@ -227,7 +230,7 @@ func (c *Connection) Close() {
 }
 
 // Txn returns the underlying transaction, if currently in one
-func (c *Connection) Txn() *pgx.Tx {
+func (c *Connection) Txn() pgx.Tx {
 	if c.txn != nil {
 		return c.txn.txn
 	}
@@ -242,13 +245,13 @@ func (c *Connection) BeginUseDefaultTxn(ctx context.Context) (err error) {
 		return e.W(nil, ECode090305)
 	}
 
-	txn, err := c.DB.Begin(ctx)
+	txn, err := c.DB.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return e.W(err, ECode090306)
 	}
 
 	c.txn = &Txn{
-		txn: &txn,
+		txn: txn,
 	}
 
 	return nil
@@ -258,7 +261,7 @@ func (c *Connection) BeginUseDefaultTxn(ctx context.Context) (err error) {
 // the database connection with the txn already set. This copy
 // should be used to call all txn commands and then discarded.
 func (c *Connection) BeginReturnDB(ctx context.Context) (db *Connection, err error) {
-	txn, err := c.DB.Begin(ctx)
+	txn, err := c.DB.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return nil, e.W(err, ECode090307)
 	}
@@ -269,7 +272,7 @@ func (c *Connection) BeginReturnDB(ctx context.Context) (db *Connection, err err
 		DB:   c.DB,
 		Slug: c.Slug,
 		txn: &Txn{
-			txn: &txn,
+			txn: txn,
 		},
 		txnIdx:       c.txnIdx,
 		statusMap:    c.statusMap,
@@ -285,13 +288,13 @@ func (c *Connection) Begin(ctx context.Context) (err error) {
 	if c.txn != nil {
 		return e.WWM(nil, ECode090308, "in a txn")
 	}
-	txn, err := c.DB.Begin(ctx)
+	txn, err := c.DB.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return e.W(err, ECode090309)
 	}
 
 	c.txn = &Txn{
-		txn: &txn,
+		txn: txn,
 	}
 
 	return nil
@@ -303,7 +306,8 @@ func (c *Connection) Commit(ctx context.Context) (err error) {
 		return e.WWM(nil, ECode09030A, "not in a txn")
 	}
 
-	if err = c.txn.Commit(ctx); err != nil {
+	txn := c.Txn()
+	if err = txn.Commit(ctx); err != nil {
 		return e.W(err, ECode09030B)
 	}
 
@@ -346,13 +350,16 @@ func (c *Connection) Rollback(ctx context.Context) {
 // Query wrapper for sql.Query with automatic txn handling
 func (c *Connection) Query(ctx context.Context, query string, args ...interface{}) (rows *Rows, err error) {
 	if c.txn != nil {
-		rows, err := c.txn.Query(ctx, query, args...)
+		rows, err := c.Txn().Query(ctx, query, args...)
 		if err != nil {
 			// Query will be logged in: func (t *Txn) Query
 			return nil, e.W(err, ECode09030C)
 		}
 
-		return rows, nil
+		return &Rows{
+			rows:  &rows,
+			query: query,
+		}, nil
 	}
 
 	sqlRows, err := c.DB.Query(ctx, query, args...)
@@ -371,7 +378,8 @@ func (c *Connection) Query(ctx context.Context, query string, args ...interface{
 // Exec wrapper for sql.Exec with automatic txn handling
 func (c *Connection) Exec(ctx context.Context, query string, args ...interface{}) (res *pgconn.CommandTag, err error) {
 	if c.txn != nil {
-		return c.txn.Exec(ctx, query, args...)
+		resConn, err := c.Txn().Exec(ctx, query, args...)
+		return &resConn, err
 	}
 
 	resConn, err := c.DB.Exec(ctx, query, args...)
@@ -387,7 +395,11 @@ func (c *Connection) Exec(ctx context.Context, query string, args ...interface{}
 // QueryRow wrapper for sql.QueryRow with automatic txn handling
 func (c *Connection) QueryRow(ctx context.Context, query string, args ...interface{}) (rows *Row) {
 	if c.txn != nil {
-		return c.txn.QueryRow(ctx, query, args...)
+		resRow := c.Txn().QueryRow(ctx, query, args...)
+		return &Row{
+			row:   &resRow,
+			query: query,
+		}
 	}
 
 	resRow := c.DB.QueryRow(ctx, query, args...)
@@ -432,6 +444,20 @@ func (c *Connection) ToSQLAndQuery(ctx context.Context, sb sq.SelectBuilder) (ro
 		return nil, e.W(err, ECode09030F, fmt.Sprintf("stmt: %s\n", stmt))
 	}
 
+	if c.txn != nil {
+		resRow, err := c.Txn().Query(ctx, stmt, bindList...)
+		if err != nil {
+			// Not logging args because it may contain sensitive information. The
+			// caller can log them if needed
+			return nil, e.W(err, ECode09030W, fmt.Sprintf("stmt: %s\n", stmt))
+		}
+
+		return &Rows{
+			rows:  &resRow,
+			query: stmt,
+		}, nil
+	}
+
 	sqlRows, err := c.DB.Query(ctx, stmt, bindList...)
 	if err != nil {
 		// Not logging args because it may contain sensitive information. The
@@ -455,6 +481,15 @@ func (c *Connection) ToSQLAndQueryRow(ctx context.Context, sb sq.SelectBuilder) 
 		return nil, e.W(err, ECode09030H, fmt.Sprintf("stmt: %s\n", stmt))
 	}
 
+	if c.txn != nil {
+		resRow := c.Txn().QueryRow(ctx, stmt, bindList...)
+
+		return &Row{
+			row:   &resRow,
+			query: stmt,
+		}, nil
+	}
+
 	return c.QueryRow(ctx, stmt, bindList...), nil
 }
 
@@ -465,6 +500,14 @@ func (c *Connection) ExecInsert(ctx context.Context, ib sq.InsertBuilder) (err e
 		// Not logging args because it may contain sensitive information. The
 		// caller can log them if needed
 		return e.W(err, ECode09030I, fmt.Sprintf("stmt: %s\n", stmt))
+	}
+
+	if c.txn != nil {
+		if _, err := c.Txn().Exec(ctx, stmt, bindList...); err != nil {
+			return e.W(err, ECode09030X)
+		}
+
+		return nil
 	}
 
 	if _, err := c.Exec(ctx, stmt, bindList...); err != nil {
@@ -485,6 +528,12 @@ func (c *Connection) ExecUpdate(ctx context.Context, ub sq.UpdateBuilder) (err e
 		return e.W(err, ECode09030K, fmt.Sprintf("stmt: %s\n", stmt))
 	}
 
+	if c.txn != nil {
+		if _, err := c.Txn().Exec(ctx, stmt, bindList...); err != nil {
+			return e.W(err, ECode09030V)
+		}
+	}
+
 	if _, err := c.Exec(ctx, stmt, bindList...); err != nil {
 		// Not logging args because it may contain sensitive information. The
 		// caller can log them if needed
@@ -503,6 +552,12 @@ func (c *Connection) ExecDelete(ctx context.Context, delB sq.DeleteBuilder) (err
 		return e.W(err, ECode09030M, fmt.Sprintf("stmt: %s\n", stmt))
 	}
 
+	if c.txn != nil {
+		if _, err := c.Txn().Exec(ctx, stmt, bindList...); err != nil {
+			return e.W(err, ECode09030Y)
+		}
+	}
+
 	if _, err := c.Exec(ctx, stmt, bindList...); err != nil {
 		// Not logging args because it may contain sensitive information. The
 		// caller can log them if needed
@@ -519,6 +574,14 @@ func (c *Connection) ExecInsertReturningID(ctx context.Context, ib sq.InsertBuil
 		// Not logging args because it may contain sensitive information. The
 		// caller can log them if needed
 		return 0, e.W(err, ECode09030O, fmt.Sprintf("stmt: %s\n", stmt))
+	}
+
+	if c.txn != nil {
+		if err := c.Txn().QueryRow(ctx, stmt, bindList...).Scan(&id); err != nil {
+			return 0, e.W(err, ECode09030Z)
+		}
+
+		return id, nil
 	}
 
 	if err := c.QueryRow(ctx, stmt, bindList...).Scan(&id); err != nil {

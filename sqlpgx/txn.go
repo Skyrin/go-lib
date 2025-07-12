@@ -21,7 +21,7 @@ const (
 
 // Txn wrapper of the *sql.Txn
 type Txn struct {
-	txn *pgx.Tx
+	txn pgx.Tx
 	// TODO: support nested transactions
 }
 
@@ -41,8 +41,8 @@ func (t *Txn) Rollback(ctx context.Context) (err error) {
 		return e.W(err, ECode090501)
 	}
 
-	txn := *t.txn
-	if err := txn.Rollback(ctx); err != nil {
+	// txn := *t.txn
+	if err := t.txn.Rollback(ctx); err != nil {
 		return e.W(err, ECode090502)
 	}
 
@@ -57,8 +57,8 @@ func (t *Txn) Commit(ctx context.Context) (err error) {
 		return e.W(err, ECode090503)
 	}
 
-	txn := *t.txn
-	if err = txn.Commit(ctx); err != nil {
+	// txn := *t.txn
+	if err = t.txn.Commit(ctx); err != nil {
 		return e.W(err, ECode090504)
 	}
 
@@ -69,21 +69,30 @@ func (t *Txn) Commit(ctx context.Context) (err error) {
 
 // Exec executes the query in the txn
 func (t *Txn) Exec(ctx context.Context, query string, args ...interface{}) (commandTag *pgconn.CommandTag, err error) {
-	txn := *t.txn
-	res, err := txn.Exec(ctx, query, args)
+	// txn := *t.txn
+
+	fmt.Printf("\npgx txn nil?: %+v\ntxn: %+v\n", t.txn == nil, t.txn)
+
+	fmt.Printf("query: %+v, args: %+v\n", query, args)
+
+	fmt.Printf("1....\n")
+
+	res, err := t.txn.Exec(ctx, query, args)
 	if err != nil {
 		// Not logging args because it may contain sensitive information. The
 		// caller can log them if needed
 		return nil, e.W(err, ECode090505, fmt.Sprintf("query: %s\n", query))
 	}
 
+	fmt.Printf("2....\n")
+
 	return &res, nil
 }
 
 // Prepare prepares the query in the txn
 func (t *Txn) Prepare(ctx context.Context, query string, name string) (stmt *pgconn.StatementDescription, err error) {
-	txn := *t.txn
-	stmt, err = txn.Prepare(ctx, name, query)
+	// txn := *t.txn
+	stmt, err = t.txn.Prepare(ctx, name, query)
 	if err != nil {
 		return nil, e.W(err, ECode090506, query)
 	}
@@ -93,8 +102,8 @@ func (t *Txn) Prepare(ctx context.Context, query string, name string) (stmt *pgc
 
 // Query runs the query in the txn
 func (t *Txn) Query(ctx context.Context, query string, args ...interface{}) (rows *Rows, err error) {
-	txn := *t.txn
-	sqlRows, err := txn.Query(ctx, query, args...)
+	// txn := *t.txn
+	sqlRows, err := t.txn.Query(ctx, query, args...)
 	if err != nil {
 		// Not logging args because it may contain sensitive information. The
 		// caller can log them if needed
@@ -109,9 +118,15 @@ func (t *Txn) Query(ctx context.Context, query string, args ...interface{}) (row
 
 // QueryRow runs the query in the txn, returning the single row
 func (t *Txn) QueryRow(ctx context.Context, query string, args ...interface{}) (row *Row) {
-	txn := *t.txn
-	resultRow := txn.QueryRow(ctx, query, args...)
+	// txn := *t.txn
 
+	fmt.Printf("1....\n")
+
+	fmt.Printf("query: %+v, args: %+v\n", query, args)
+
+	resultRow := t.txn.QueryRow(ctx, query, args...)
+
+	fmt.Printf("2....\n")
 	return &Row{
 		row:   &resultRow,
 		query: query,
@@ -120,6 +135,6 @@ func (t *Txn) QueryRow(ctx context.Context, query string, args ...interface{}) (
 
 // Stmt prepares the statement in the txn
 func (t *Txn) Stmt(ctx context.Context, stmt string, name string) (*pgconn.StatementDescription, error) {
-	txn := *t.txn
-	return txn.Prepare(ctx, name, stmt)
+	// txn := *t.txn
+	return t.txn.Prepare(ctx, name, stmt)
 }
