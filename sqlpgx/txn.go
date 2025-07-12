@@ -69,22 +69,12 @@ func (t *Txn) Commit(ctx context.Context) (err error) {
 
 // Exec executes the query in the txn
 func (t *Txn) Exec(ctx context.Context, query string, args ...interface{}) (commandTag *pgconn.CommandTag, err error) {
-	// txn := *t.txn
-
-	fmt.Printf("\npgx txn nil?: %+v\ntxn: %+v\n", t.txn == nil, t.txn)
-
-	fmt.Printf("query: %+v, args: %+v\n", query, args)
-
-	fmt.Printf("1....\n")
-
 	res, err := t.txn.Exec(ctx, query, args)
 	if err != nil {
 		// Not logging args because it may contain sensitive information. The
 		// caller can log them if needed
 		return nil, e.W(err, ECode090505, fmt.Sprintf("query: %s\n", query))
 	}
-
-	fmt.Printf("2....\n")
 
 	return &res, nil
 }
@@ -118,15 +108,8 @@ func (t *Txn) Query(ctx context.Context, query string, args ...interface{}) (row
 
 // QueryRow runs the query in the txn, returning the single row
 func (t *Txn) QueryRow(ctx context.Context, query string, args ...interface{}) (row *Row) {
-	// txn := *t.txn
-
-	fmt.Printf("1....\n")
-
-	fmt.Printf("query: %+v, args: %+v\n", query, args)
-
 	resultRow := t.txn.QueryRow(ctx, query, args...)
 
-	fmt.Printf("2....\n")
 	return &Row{
 		row:   &resultRow,
 		query: query,
