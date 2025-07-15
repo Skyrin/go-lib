@@ -199,7 +199,7 @@ func (c *Client) Flush() (resList *ResponseList, err error) {
 }
 
 // Send performs the actual publish requet to the arc notification service
-func (c *Client) Send(reqItemList []*RequestItem) (resList *ResponseList, err error) {
+func (c *Client) Send() (resList *ResponseList, err error) {
 	if len(c.RequestList) == 0 {
 		return nil, e.N(ECode04010A, "request list is empty")
 	}
@@ -208,7 +208,7 @@ func (c *Client) Send(reqItemList []*RequestItem) (resList *ResponseList, err er
 	if err != nil {
 		return nil, e.W(err, ECode04010B)
 	}
-	reqList := c.newRequestList(reqItemList)
+	reqList := c.newRequestList(c.RequestList)
 	reqList.setAuth(ca)
 
 	var url string
