@@ -24,11 +24,24 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/Skyrin/go-lib/arc/sqlmodel"
 	"github.com/Skyrin/go-lib/e"
 	"github.com/Skyrin/go-lib/sql"
 	"github.com/rs/zerolog/log"
+)
+
+type App string
+type Host string
+
+const (
+	AppCore      App = "core"
+	AppArcimedes App = "arcimedes"
+	AppCart      App = "cart"
+
+	HostManager Host = "manager"
+	HostAPI     Host = "api"
 )
 
 const (
@@ -39,11 +52,13 @@ const (
 	// DefaultID is the default id number to use in the request
 	DefaultID = 0
 	// Path for core API requests
-	corePath = "/services/"
+	corePath = "/"
 	// Path for arcimedes API requests
-	arcimedesPath = "/apps/arcimedes/services/"
+	arcimedesPath = "/apps/arcimedes/"
 	// Path for cart API requests
-	cartPath = "/apps/cart/stores/%s/services/"
+	cartPath = "/apps/cart/stores/"
+
+	servicesPath = "services/"
 
 	ECode040101 = e.Code0401 + "01"
 	ECode040102 = e.Code0401 + "02"
@@ -84,6 +99,9 @@ type Client struct {
 	// Defines the deployment this client is configured to connect to
 	deployment *Deployment
 	grant      *Grant // Defines grant used for authentication
+	app        App
+	host       Host
+	url        string // The currently configured arc URL to use
 }
 
 // NewClient returns a new client to handle requests to the arc notification service
@@ -131,7 +149,11 @@ func NewClientFromDeployment(cp *sql.ConnParam, deploymentCode string) (c *Clien
 		Version:    DefaultVersion,
 		ID:         DefaultID,
 		deployment: deployment,
+		app:        AppCore,
+		host:       HostManager,
 	}
+
+	c.SetURL()
 
 	return c, nil
 }
@@ -161,6 +183,47 @@ func (c *Client) SetPath(path string) {
 		c.Path = DefaultPath
 	} else {
 		c.Path = path
+	}
+}
+
+// SetApp sets app and regenerates the url
+func (c *Client) SetApp(app App) {
+	c.app = app
+
+	// Update url
+	c.SetURL()
+}
+
+// SetHost sets host and regenerates the url
+func (c *Client) SetHost(host Host) {
+	c.host = host
+
+	// Update url
+	c.SetURL()
+}
+
+// SetAppAndHost sets app and host and regenerates the url
+func (c *Client) SetAppAndHost(app App, host Host) {
+	c.app = app
+	c.host = host
+
+	// Update url
+	c.SetURL()
+}
+
+// SetURL regenerate the url
+func (c *Client) SetURL() {
+	if c.deployment == nil {
+		return
+	}
+
+	switch c.app {
+	case AppCore:
+		c.url = c.deployment.getCoreServiceURL(c.host)
+	case AppArcimedes:
+		c.url = c.deployment.getArcimedesServiceURL(c.host)
+	case AppCart:
+		c.url = c.deployment.getCartServiceURL(c.host, c.deployment.StoreCode)
 	}
 }
 
@@ -211,18 +274,7 @@ func (c *Client) Send() (resList *ResponseList, err error) {
 	reqList := c.newRequestList(c.RequestList)
 	reqList.setAuth(ca)
 
-	var url string
-	if c.deployment != nil {
-		if c.deployment.StoreCode != "" {
-			url = c.deployment.getAPICartServiceURL(c.deployment.StoreCode)
-		} else {
-			url = c.deployment.getManageCoreServiceURL()
-		}
-	} else {
-		url = c.getServiceURL()
-	}
-
-	resList, err = c.send(url, reqList, true)
+	resList, err = c.send(c.url, reqList, true)
 	if err != nil {
 		return resList, e.W(err, ECode04010C)
 	}
@@ -230,6 +282,22 @@ func (c *Client) Send() (resList *ResponseList, err error) {
 	c.RequestList = nil
 
 	return resList, nil
+}
+
+// SendSinglRequest send single request to arc
+func (c *Client) SendSinglRequest(ri RequestItem) (res *Response, err error) {
+	ca, err := c.getClientAuth()
+	if err != nil {
+		return nil, e.W(err, ECode04010B)
+	}
+
+	return c.sendSingleRequestItem(c.url, &ri, ca)
+}
+
+
+// SendSinglRequestNoAuth send single request to arc with no authorization headers
+func (c *Client) SendSinglRequestNoAuth(ri RequestItem) (res *Response, err error) {
+	return c.sendSingleRequestItem(c.url, &ri, nil)
 }
 
 func (c *Client) sendSingleRequestItem(url string, ri *RequestItem,
@@ -249,10 +317,13 @@ func (c *Client) sendSingleRequestItem(url string, ri *RequestItem,
 	}
 
 	if !resList.Responses[0].Success {
-		return &resList.Responses[0],
-			e.N(ECode04010E,
-				fmt.Sprintf("[%s]%s", resList.Responses[0].ErrorCode,
-					resList.Responses[0].Message))
+		var sb strings.Builder
+		_ = sb.WriteByte('[')
+		_, _ = sb.WriteString(resList.Responses[0].ErrorCode)
+		_ = sb.WriteByte(']')
+		_, _ = sb.WriteString(resList.Responses[0].Message)
+		
+		return &resList.Responses[0], e.N(ECode04010E, sb.String())
 	}
 
 	return &resList.Responses[0], nil
@@ -350,6 +421,7 @@ func (c *Client) Log(ee *e.ExtendedError) {
 func (c *Client) SetStoreCode(storeCode string) {
 	if c.deployment != nil {
 		c.deployment.StoreCode = storeCode
+		c.SetURL()
 	}
 }
 

@@ -1,7 +1,6 @@
 package arc
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/Skyrin/go-lib/arc/model"
@@ -79,48 +78,74 @@ func NewDeployment(db *sql.Connection, cp *sql.ConnParam, deploymentCode string)
 
 // getAPICoreServiceURL returns core service URL for arc API domain
 func (d *Deployment) getAPICoreServiceURL() string {
-	var sb strings.Builder
-	_, _ = sb.WriteString(d.Model.APIURL)
-	_, _ = sb.WriteString(corePath)
-	return sb.String()
+	return d.getCoreServiceURL(HostAPI)
 }
 
 // getAPICoreServiceURL returns core service URL for arc manager domain
 func (d *Deployment) getManageCoreServiceURL() string {
-	var sb strings.Builder
-	_, _ = sb.WriteString(d.Model.ManageURL)
-	_, _ = sb.WriteString(corePath)
-	return sb.String()
+	return d.getCoreServiceURL(HostManager)
 }
 
 // getAPIArcimedesServiceURL returns arcimedes service URL for arc API domain
 func (d *Deployment) getAPIArcimedesServiceURL() string {
-	var sb strings.Builder
-	_, _ = sb.WriteString(d.Model.APIURL)
-	_, _ = sb.WriteString(arcimedesPath)
-	return sb.String()
+	return d.getArcimedesServiceURL(HostAPI)
 }
 
 // getManageArcimedesServiceURL returns arcimedes service URL for arc manager domain
 func (d *Deployment) getManageArcimedesServiceURL() string {
-	var sb strings.Builder
-	_, _ = sb.WriteString(d.Model.ManageURL)
-	_, _ = sb.WriteString(arcimedesPath)
-	return sb.String()
+	return d.getArcimedesServiceURL(HostManager)
 }
 
 // getAPICartServiceURL returns cart service URL for the specified store code for arc API domain
 func (d *Deployment) getAPICartServiceURL(storeCode string) string {
-	var sb strings.Builder
-	_, _ = sb.WriteString(d.Model.APIURL)
-	_, _ = sb.WriteString(fmt.Sprintf(cartPath, storeCode))
-	return sb.String()
+	return d.getCartServiceURL(HostAPI, storeCode)
 }
 
 // getManageCartServiceURL returns cart service URL for the specified store code for arc manager domain
 func (d *Deployment) getManageCartServiceURL(storeCode string) string {
+	return d.getCartServiceURL(HostManager, storeCode)
+}
+
+// getCoreServiceURL return core service url depending on host type
+func (d *Deployment) getCoreServiceURL(host Host) string {
 	var sb strings.Builder
-	_, _ = sb.WriteString(d.Model.ManageURL)
-	_, _ = sb.WriteString(fmt.Sprintf(cartPath, storeCode))
+	if host == HostManager {
+		_, _ = sb.WriteString(d.Model.ManageURL)
+	} else {
+		_, _ = sb.WriteString(d.Model.APIURL)
+	}
+
+	_, _ = sb.WriteString(corePath)
+	_, _ = sb.WriteString(servicesPath)
+	return sb.String()
+}
+
+// getArcimedesServiceURL return arcimedes service url depending on host type
+func (d *Deployment) getArcimedesServiceURL(host Host) string {
+	var sb strings.Builder
+	if host == HostManager {
+		_, _ = sb.WriteString(d.Model.ManageURL)
+	} else {
+		_, _ = sb.WriteString(d.Model.APIURL)
+	}
+
+	_, _ = sb.WriteString(arcimedesPath)
+	_, _ = sb.WriteString(servicesPath)
+	return sb.String()
+}
+
+// getCartServiceURL return cart service url depending on host type
+func (d *Deployment) getCartServiceURL(host Host, storeCode string) string {
+	var sb strings.Builder
+	if host == HostManager {
+		_, _ = sb.WriteString(d.Model.ManageURL)
+	} else {
+		_, _ = sb.WriteString(d.Model.APIURL)
+	}
+
+	_, _ = sb.WriteString(cartPath)
+	_, _ = sb.WriteString(storeCode)
+	_ = sb.WriteByte('/')
+	_, _ = sb.WriteString(servicesPath)
 	return sb.String()
 }
