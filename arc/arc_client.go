@@ -284,8 +284,8 @@ func (c *Client) Send() (resList *ResponseList, err error) {
 	return resList, nil
 }
 
-// SendSinglRequest send single request to arc
-func (c *Client) SendSinglRequest(ri RequestItem) (res *Response, err error) {
+// SendSingleRequest send single request to arc
+func (c *Client) SendSingleRequest(ri RequestItem) (res *Response, err error) {
 	ca, err := c.getClientAuth()
 	if err != nil {
 		return nil, e.W(err, ECode04010B)
@@ -295,8 +295,8 @@ func (c *Client) SendSinglRequest(ri RequestItem) (res *Response, err error) {
 }
 
 
-// SendSinglRequestNoAuth send single request to arc with no authorization headers
-func (c *Client) SendSinglRequestNoAuth(ri RequestItem) (res *Response, err error) {
+// SendSingleRequestNoAuth send single request to arc with no authorization headers
+func (c *Client) SendSingleRequestNoAuth(ri RequestItem) (res *Response, err error) {
 	return c.sendSingleRequestItem(c.url, &ri, nil)
 }
 
