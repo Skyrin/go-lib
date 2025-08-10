@@ -9,12 +9,23 @@ import (
 	pkgerrors "github.com/pkg/errors"
 )
 
+type Type string
+
+const (
+	TypeDatabase     = Type("database")
+	TypeDefault      = Type("")
+	TypeDoesNotExist = Type("does-not-exist")
+	TypeDuplicate    = Type("duplicate")
+	TypeInput        = Type("input")
+)
+
 // ExtendedError is our custom error
 type ExtendedError struct {
 	InnerError     error
 	Message        string
 	TruncateXLines int
 	original       error
+	Type           Type
 }
 
 // Error returns the string of the inner error
@@ -164,4 +175,40 @@ func WWM(err error, code, msg string, debugMessages ...string) error {
 // See New for full details
 func N(code, msg string) (err error) {
 	return WrapWithMsg(nil, code, "", msg, msg)
+}
+
+// NT shortcut to call N (New) and T (SetType) combined
+func NT(code, msg string, t Type) (err error) {
+	err = WrapWithMsg(nil, code, "", msg, msg)
+	T(err, t)
+
+	return err
+}
+
+// T shorcut for SetType
+func T(err error, t Type) {
+	SetType(err, t)
+}
+
+// SetType sets the extended error type. If the error
+// is not an extended error, it does nothing
+func SetType(err error, t Type) {
+	ee := AsExtendedError(err)
+	if ee == nil {
+		return
+	}
+
+	ee.Type = t
+}
+
+// GetType if the error is an extended error, it will return
+// the extended error type. Otherwise, it will return the default
+// extended error type, which is an empty string
+func GetType(err error) (Type) {
+	ee := AsExtendedError(err)
+	if ee == nil {
+		return TypeDefault
+	}
+
+	return ee.Type
 }
