@@ -12,11 +12,11 @@ import (
 type Type string
 
 const (
-	TypeDatabase     = Type("database")
-	TypeDefault      = Type("")
-	TypeDoesNotExist = Type("does-not-exist")
-	TypeDuplicate    = Type("duplicate")
-	TypeInput        = Type("input")
+	TDatabase     = Type("database")
+	TDefault      = Type("")
+	TDoesNotExist = Type("does-not-exist")
+	TDuplicate    = Type("duplicate")
+	TInput        = Type("input")
 )
 
 // ExtendedError is our custom error
@@ -204,10 +204,10 @@ func SetType(err error, t Type) {
 // GetType if the error is an extended error, it will return
 // the extended error type. Otherwise, it will return the default
 // extended error type, which is an empty string
-func GetType(err error) (Type) {
+func GetType(err error) Type {
 	ee := AsExtendedError(err)
 	if ee == nil {
-		return TypeDefault
+		return TDefault
 	}
 
 	return ee.Type
