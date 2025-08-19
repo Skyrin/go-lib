@@ -21,15 +21,32 @@ type RequestItem struct {
 
 // RequestItemOption defines possible options for a request item
 type RequestItemOption struct {
-	Value  map[string]interface{} `json:"value"`
-	Flag   map[string]bool        `json:"flag"`
-	Filter map[string]interface{} `json:"filter"`
-	Limit  RequestItemLimit       `json:"limit"`
+	Value  map[string]interface{} `json:"value,omitempty"`
+	Flag   map[string]bool        `json:"flag,omitempty"`
+	Filter map[string]interface{} `json:"filter,omitempty"`
+	Limit  *RequestItemLimit      `json:"limit,omitempty"`
+	Order  []string               `json:"order,omitempty"`
 }
 
 type RequestItemLimit struct {
-	Count  int `json:"count"`
-	Offset int `json:"offset"`
+	Count  int `json:"count,omitempty"`
+	Offset int `json:"offset,omitempty"`
+}
+
+// SetCount sets the limit count for the request
+func (rio *RequestItemOption) SetCount(count int) {
+	if rio.Limit == nil {
+		rio.Limit = &RequestItemLimit{}
+	}
+	rio.Limit.Count = count
+}
+
+// SetOffset sets the limit offset for the request
+func (rio *RequestItemOption) SetOffset(offset int) {
+	if rio.Limit == nil {
+		rio.Limit = &RequestItemLimit{}
+	}
+	rio.Limit.Offset = offset
 }
 
 // newRequestList creates the notification request in JSON format
